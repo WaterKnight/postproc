@@ -42,6 +42,8 @@ local function createConfig()
 		local curSection = nil
 
 		for line in f:lines() do
+			line = line:gsub('\\\\', '\\')
+
 			local sectionName = line:match('%['..'([%w%d%p_]*)'..'%]')
 
 			if (sectionName ~= nil) then
@@ -132,10 +134,22 @@ local function requireEx(dir, name)
 	requireEx2(dir..'\\'..name)
 end
 
---error(config.assignments['wc3libs'])
-
 requireEx(config.assignments['waterlua'], 'waterlua')
 requireEx(config.assignments['wc3libs'], 'wc3binary')
+
+local toolsLookupPath = config.assignments['toolsLookup']
+
+if (toolsLookupPath ~= nil) then
+	toolsLookupPath = toolsLookupPath:gsub('/', '\\')
+
+	if not toolsLookupPath:match('\\$') then
+		toolsLookupPath = toolsLookupPath..'\\'
+	end
+
+	if not io.isAbsPath(toolsLookupPath) then
+		toolsLookupPath = io.local_dir()..toolsLookupPath
+	end
+end
 
 local defLogPath = io.local_dir()..'log.txt'
 
@@ -219,7 +233,7 @@ if (getFileExtension(instructionFilePath) == 'wct') then
 	local root = wc3binaryFile.create()
 
 	root:readFromFile(instructionFilePath, wctMaskFunc)
---error('breakpoint')
+
 	local headTrig = root:getSub('headTrig')
 
 	local text = headTrig:getVal('text')
@@ -420,103 +434,131 @@ for i = 1, #extCalls, 1 do
 	local tool = exttoolsByName[extCall.name]
 
 	if (tool ~= nil) then
-		if (lfs.attributes(tool.path) == nil) then
-			tool.path = io.toAbsPath(tool.path)
+		local tryTable = {}
+
+		tryTable[#tryTable + 1] = tool.path
+
+		if not io.isAbsPath(tool.path) then
+			if (toolsLookupPath ~= nil) then
+				tryTable[#tryTable + 1] = toolsLookupPath..tool.path
+			end
 		end
 
-		for i = 1, #extCall.args, 1 do
-			local arg = extCall.args[i]
+		tool.path = tryTable[1]
 
-			if (arg == '$MAP$') then
-				arg = mapPath
-			end
-			if (arg == '$FILENAME$') then
-				arg = tmpFileName
-			end
+		local i = 2
 
-			extCall.args[i] = arg
+		while ((lfs.attributes(tool.path) == nil) and (i <= #tryTable)) do
+			tool.path = tryTable[i]
+
+			i = i + 1
 		end
 
+		local hasError = false
 		local errorMsg = nil
-		local res = 0
+		local resLevel = nil
 
-		if (getFileExtension(tool.path) == 'lua') then
-			local func = loadfile(tool.path)
+		if (lfs.attributes(tool.path) == nil) then
+			hasError = true
+			errorMsg = 'tool '..tostring(extCall.name)..' not found, tried:\n'..table.concat(tryTable, '\n')
+		end
 
-			local t = {}
-
-			t[#t + 1] = tool.path
-
+		if not hasError then
 			for i = 1, #extCall.args, 1 do
-				t[#t + 1] = tostring(extCall.args[i])
+				local arg = extCall.args[i]
+
+				if (arg == '$MAP$') then
+					arg = mapPath
+				end
+				if (arg == '$FILENAME$') then
+					arg = tmpFileName
+				end
+
+				extCall.args[i] = arg
 			end
 
-			print('call', table.concat(t, ' '))
-			postprocLog:write('call: ', table.concat(t, ' '), '\n')
+			if (getFileExtension(tool.path) == 'lua') then
+				local func = loadfile(tool.path)
 
-			if (func ~= nil) then
-				res, errorMsg = xpcall(function() return func(unpack(extCall.args)) end, function(msg) postprocLog:write(msg, '\n'); postprocLog:write(debug.traceback('', 2):sub(2), '\n') end)
+				local t = {}
 
-				if (res == true) then
-					res = 0
-				elseif (res == false) then
-					res = 1
+				t[#t + 1] = tool.path
+
+				for i = 1, #extCall.args, 1 do
+					t[#t + 1] = tostring(extCall.args[i])
+				end
+
+				print('call', table.concat(t, ' '))
+				postprocLog:write('call: ', table.concat(t, ' '), '\n')
+
+				if (func ~= nil) then
+					local luaResVal
+
+					luaResVal, errorMsg = xpcall(function() return func(unpack(extCall.args)) end, function(msg) postprocLog:write(msg, '\n'); postprocLog:write(debug.traceback('', 2):sub(2), '\n') end)
+
+					hasError = hasError or not luaResVal
+				else
+					hasError = true
+					errorMsg = 'tool not found on '..tool.path
 				end
 			else
-				res = -1
-				errorMsg = 'tool not found on '..tool.path
-			end
-		else
-			local t = {}
+				local t = {}
 
-			t[#t + 1] = tostring(tool.path):gsub("\\\\", "\\")
+				t[#t + 1] = tostring(tool.path):gsub("\\\\", "\\")
 
-			if (extCall.lines ~= nil) then
-				tmpFile = io.open(tmpFileName, 'w+')
+				if (extCall.lines ~= nil) then
+					tmpFile = io.open(tmpFileName, 'w+')
 
-				tmpFile:write(table.concat(extCall.lines, '\n'))
-			end
+					tmpFile:write(table.concat(extCall.lines, '\n'))
+				end
 
-			for j = 1, #extCall.args, 1 do
-				local arg = extCall.args[j]
+				for j = 1, #extCall.args, 1 do
+					local arg = extCall.args[j]
 
-				if (tonumber(arg) == nil) then
-					if (arg:sub(1, 1) ~= "-") then
-						if (arg:sub(arg:len(), arg:len()) == "\\") then
-							arg = arg .. "\\"
+					if (tonumber(arg) == nil) then
+						if (arg:sub(1, 1) ~= "-") then
+							if (arg:sub(arg:len(), arg:len()) == "\\") then
+								arg = arg .. "\\"
+							end
+
+							arg = "\"" .. arg .. "\""
 						end
-
-						arg = "\"" .. arg .. "\""
 					end
+
+					t[#t + 1] = arg
 				end
 
-				t[#t + 1] = arg
-			end
+				if (tmpFile ~= nil) then
+					tmpFile:close()
+				end
 
-			if (tmpFile ~= nil) then
-				tmpFile:close()
-			end
+				local cmd = table.concat(t, ' ')
 
-			local cmd = table.concat(t, ' ')
+				print('call', cmd)
+				postprocLog:write('call: ', cmd, '\n')
 
-			print('call', cmd)
-			postprocLog:write('call: ', cmd, '\n')
+				if (wehack ~= nil) then
+					resLevel = wehack.runprocess2(cmd)
+				else
+					resLevel = runProg(tool.path, extCall.args)
+				end
 
-			if (wehack ~= nil) then
-				res = wehack.runprocess2(cmd)
-			else
-				res = runProg(tool.path, extCall.args)
-				--res = io.popen(cmd)
+				hasError = hasError or (resLevel ~= 0)
 			end
 		end
 
-		if (res ~= 0) then
-			postprocLog:write('error: tool returned error level '..tostring(res), '\n')
+		if hasError then
+			postprocLog:write('error: an error occurred', '\n')
+
+			if (resLevel ~= nil) then
+				postprocLog:write('error: tool returned error level '..tostring(resLevel), '\n')
+			end
+
+			if (errorMsg ~= nil) then
+				postprocLog:write('errorMsg: '..tostring(errorMsg), '\n')
+			end
+
 			throwError = true
-		end
-
-		if (errorMsg ~= nil) then
-			postprocLog:write('errorMsg: '..tostring(errorMsg), '\n')
 		end
 	else
 		postprocLog:write('tool ' .. extCall.name .. ' not defined')
