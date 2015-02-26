@@ -513,9 +513,9 @@ if (config_postprocSection ~= nil) then
 			postproc_dir = postproc_dir..'\\'
 		end
 
-		postproc_onStartupPath = postproc_dir..'jngp_onStartup.lua'
-		postproc_onSavePath = postproc_dir..'jngp_onSave.lua'
-		postproc_onTestmapPath = postproc_dir..'jngp_onTestmap.lua'
+		postproc_onStartupPath = postproc_dir..'JNGP\\jngp_onStartup.lua'
+		postproc_onSavePath = postproc_dir..'JNGP\\jngp_onSave.lua'
+		postproc_onTestmapPath = postproc_dir..'JNGP\\jngp_onTestmap.lua'
 
 		local t = {postproc_onStartupPath, postproc_onSavePath, postproc_onTestmapPath}
 		local t2 = {}

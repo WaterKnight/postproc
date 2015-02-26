@@ -24,8 +24,8 @@ local postprocPath = postprocDir..'postproc.lua'
 
 assert(postprocPath, 'no postprocPath')
 
-local postproc = loadfile(postprocPath)
+local postproc, loadErr = loadfile(postprocPath)
 
-assert(postproc, 'cannot load '..tostring(postprocPath))
+assert(postproc, 'cannot load '..tostring(postprocPath)..'\n'..tostring(loadErr))
 
 return postproc(mapPath, outputPath, nil, paramsMap['wc3path'], paramsMap['configPath'], paramsMap['logPath'])

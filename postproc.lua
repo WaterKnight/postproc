@@ -10,6 +10,8 @@ local logPath = params[6]
 assert(mapPath, 'no mapPath')
 assert(outputPath, 'no outputPath')
 
+assert(mapPath ~= outputPath, 'input and output path are equal')
+
 local function script_path()
 	local str = debug.getinfo(2, "S").source:sub(2)
 
@@ -107,7 +109,7 @@ local function addPackagePath(path)
 	end
 end
 
-local function requireEx2(path)
+local function requireDir(path)
 	assert(path, 'no path')
 
 	path = path:gsub('/', '\\')
@@ -124,18 +126,164 @@ local function requireEx2(path)
 		addPackagePath(add)
 	end
 
+	package.loaded[name] = nil
+
 	require(name)
 end
 
-local function requireEx(dir, name)
-	assert(dir, 'no dir')
-	assert(name, 'no name')
+local isAbsPath = function(path)
+	assert(path, 'no path')
 
-	requireEx2(dir..'\\'..name)
+	if path:find(':') then
+		return true
+	end
+
+	return false
 end
 
-requireEx(config.assignments['waterlua'], 'waterlua')
-requireEx(config.assignments['wc3libs'], 'wc3binary')
+io.isAbsPath = function(path)
+	return isAbsPath(path)
+end
+
+local function getCallStack()
+	local t = {}
+
+	local c = 2
+
+	while debug.getinfo(c, 'S') do
+		local what = debug.getinfo(c, 'S').what
+
+		if ((what == 'Lua') or (what == 'main')) then
+			t[#t + 1] = debug.getinfo(c, 'S')
+		end
+
+		c = c + 1
+	end
+
+	return t
+end
+
+local function toFolderPath(path)
+	assert(path, 'no path')
+
+if type(path)=='number' then
+	error(debug.traceback())
+end
+	path = path:gsub('/', '\\')
+
+	if not path:match('\\$') then
+		path = path..'\\'
+	end
+
+	return path
+end
+
+function getFolder(path)
+	assert(path, 'no path')
+
+	local res = ""
+
+	while path:find("\\") do
+		res = res..path:sub(1, path:find("\\"))
+
+		path = path:sub(path:find("\\") + 1)
+	end
+
+	return res
+end
+
+function getFileName(path, noExtension)
+	assert(path, 'no path')
+
+	while path:find("\\") do
+		path = path:sub(path:find("\\") + 1)
+	end
+
+	if noExtension then
+		if path:lastFind('%.') then
+			path = path:sub(1, path:lastFind('%.') - 1)
+		end
+	end
+
+	return path
+end
+
+string.reduceFolder = function(s, amount)
+	if (amount == nil) then
+		amount = 1
+	end
+
+	if (amount == 0) then
+		return s
+	end
+
+	return string.reduceFolder(getFolder(s:sub(1, getFolder(s):len() - 1))..getFileName(s), amount - 1)
+end
+
+local toAbsPath = function(path, basePath)
+	assert(path, 'no path')
+
+	path = path:gsub('/', '\\')
+
+	if isAbsPath(path) then
+		return path
+	end
+
+	--local scriptDir = getFolder(scriptPath:gsub('/[^/]+$', ''))
+
+	if (basePath == nil) then
+		basePath = io.curDir()
+	end
+
+	local result = toFolderPath(basePath)
+
+	while (path:find('..\\') == 1) do
+		result = result:reduceFolder()
+
+		path = path:sub(4)
+	end
+
+	result = result..path
+
+	return result
+end
+
+io.toAbsPath = function(path, basePath)
+	return toAbsPath(path, basePath)
+end
+
+io.curDir = function()
+	return toFolderPath(lfs.currentdir())
+end
+
+io.local_dir = function(level)
+	if (level == nil) then
+		level = 0
+	end
+
+	local path = getCallStack()[2 + level].source
+
+	path = path:match('^@(.*)$')
+
+	while ((path:find('.', 1, true) == 1) or (path:find('\\', 1, true) == 1)) do
+		path = path:sub(2)
+	end
+
+	path = path:gsub('/', '\\')
+
+	path = path:match('(.*\\)')
+
+	if not io.isAbsPath(path) then
+		path = io.curDir()..path
+	end
+
+	return path
+end
+
+requireDir(io.toAbsPath(config.assignments['waterlua'], io.local_dir()))
+requireDir(io.toAbsPath(config.assignments['wc3libs'], io.local_dir()))
+
+local toolEnvTemplate = copyTable(_G)
 
 local toolsLookupPath = config.assignments['toolsLookup']
 
@@ -146,9 +294,7 @@ if (toolsLookupPath ~= nil) then
 		toolsLookupPath = toolsLookupPath..'\\'
 	end
 
-	if not io.isAbsPath(toolsLookupPath) then
-		toolsLookupPath = io.local_dir()..toolsLookupPath
-	end
+	toolsLookupPath = io.toAbsPath(toolsLookupPath, io.local_dir())
 end
 
 local defLogPath = io.local_dir()..'log.txt'
@@ -156,9 +302,9 @@ local defLogPath = io.local_dir()..'log.txt'
 if (logPath == nil) then
 	logPath = defLogPath
 
-	os.remove(defLogPath)
+	removeFile(defLogPath)
 else
-	os.remove(logPath)
+	removeFile(logPath)
 end
 
 local postprocLog = io.open(logPath, 'w+')
@@ -188,20 +334,29 @@ if (externalToolsSection ~= nil) then
 	for i = 1, #externalToolsSection.lines, 1 do
 		local line = externalToolsSection.lines[i]
 
-		local t = line:split(',')
-
-		local name = t[1]
-		local path = t[2]
+		local name, vals = line:match('([%w%d%p_]+)=([%w%d%p_]+)')
 
 		if (name ~= nil) and (name ~= '') then
+			vals = vals:split(';')
+
+			local path = vals[1]
+			local flags = vals[2]
+
 			name = name:gsub("\"", "")
 			if (path ~= nil) then
 				path = path:gsub("\"", "")
 			end
 
+			if (flags ~= nil) then
+				flags = flags:split(',')
+			else
+				flags = {}
+			end
+
 			local exttool = {}
 
 			exttool.name = name
+			exttool.flags = flags
 			exttool.path = path
 
 			exttools[#exttools + 1] = exttool
@@ -239,7 +394,11 @@ if (getFileExtension(instructionFilePath) == 'wct') then
 	local text = headTrig:getVal('text')
 
 	for i, line in pairs(text:split('\n')) do
-		instructionLines[#instructionLines + 1] = line
+		line = line:match('^%s*//!%s+i%s+(.*)') or line:match('^%s*//!%s+(.*)')
+
+		if (line ~= nil) then
+			instructionLines[#instructionLines + 1] = line
+		end
 	end
 else
 	for line in instructionFile:lines() do
@@ -248,13 +407,14 @@ else
 end
 
 local lineNum = 0
+local vars = {}
 
 for i, line in pairs(instructionLines) do
 	lineNum = lineNum + 1
 
 	postprocLog:write('line ', lineNum, ': ', line, '\n')
 
-	local sear = '^%s*//!%s+post%s+([%w%d_]*)'
+	local sear = 'post%s+([%w%d_]*)'
 
 	local name = line:match(sear)
 
@@ -321,7 +481,7 @@ for i, line in pairs(instructionLines) do
 		end
 	end
 
-	local sear = '^%s*//!%s+postblock%s+([%w%d_]*)'
+	local sear = 'postblock%s+([%w%d_]*)'
 
 	local name = line:match(sear)
 
@@ -390,34 +550,41 @@ for i, line in pairs(instructionLines) do
 		curExtCallBlock = extCall
 
 		extCall.lines = {}
-	elseif line:match('^%s*//! i ') then
-		local pos, posEnd = line:find('^%s*//! i ')
-
-		if (posEnd ~= nil) then
-			local lineTrunc = line:sub(posEnd + 1)
-
-			if (lineTrunc ~= nil) then
-				if (curExtCallBlock ~= nil) then
-					curExtCallBlock.lines[#curExtCallBlock.lines + 1] = lineTrunc
-				end
-			end
-		end
+	elseif line:match('endpostblock') then
+		curExtCallBlock = nil
 	else
-		if line:match('^%s*//! endpostblock') then
-			curExtCallBlock = nil
+		if (curExtCallBlock ~= nil) then
+			local lineTrunc = line
+
+			if (lineTrunc:find('%s') == 1) then
+				lineTrunc = lineTrunc:sub(2)
+			end
+
+			curExtCallBlock.lines[#curExtCallBlock.lines + 1] = lineTrunc
 		end
 	end
 
-	if line:find('^%s*//!%s+noJasshelper') then
+	if line:find('noJasshelper') then
 		postprocLog:write('found noJasshelper ', ' at line ', lineNum, '\n')
 
 		noJasshelper = true
+	end
+
+	local name, val = line:match('%$([%w%d%p_]+)%$ = ([%w%d%p_]+)')
+
+	if (name ~= nil) then
+		postprocLog:write('set '..tostring(name)..' to '..tostring(val), '\n')
+
+		vars[name] = val
 	end
 end
 
 instructionFile:close()
 
+vars['MAP'] = mapPath
+
 local throwError = false
+local throwErrorMsg = nil
 
 for i = 1, #extCalls, 1 do
 	local extCall = extCalls[i]
@@ -433,7 +600,13 @@ for i = 1, #extCalls, 1 do
 
 	local tool = exttoolsByName[extCall.name]
 
+	local hasError = false
+	local errorMsg = nil
+	local resLevel = nil
+
 	if (tool ~= nil) then
+		vars['FILENAME'] = tmpFileName
+
 		local tryTable = {}
 
 		tryTable[#tryTable + 1] = tool.path
@@ -454,54 +627,31 @@ for i = 1, #extCalls, 1 do
 			i = i + 1
 		end
 
-		local hasError = false
-		local errorMsg = nil
-		local resLevel = nil
-
 		if (lfs.attributes(tool.path) == nil) then
 			hasError = true
 			errorMsg = 'tool '..tostring(extCall.name)..' not found, tried:\n'..table.concat(tryTable, '\n')
 		end
 
+		local cmd = nil
+
 		if not hasError then
 			for i = 1, #extCall.args, 1 do
 				local arg = extCall.args[i]
 
-				if (arg == '$MAP$') then
-					arg = mapPath
-				end
-				if (arg == '$FILENAME$') then
-					arg = tmpFileName
+				local varName = arg:match('%$(.*)%$')
+
+				if (varName ~= nil) then
+					local varVal = vars[varName]
+
+					if varVal then
+						arg = varVal
+					end
 				end
 
 				extCall.args[i] = arg
 			end
 
-			if (getFileExtension(tool.path) == 'lua') then
-				local func = loadfile(tool.path)
-
-				local t = {}
-
-				t[#t + 1] = tool.path
-
-				for i = 1, #extCall.args, 1 do
-					t[#t + 1] = tostring(extCall.args[i])
-				end
-
-				print('call', table.concat(t, ' '))
-				postprocLog:write('call: ', table.concat(t, ' '), '\n')
-
-				if (func ~= nil) then
-					local luaResVal
-
-					luaResVal, errorMsg = xpcall(function() return func(unpack(extCall.args)) end, function(msg) postprocLog:write(msg, '\n'); postprocLog:write(debug.traceback('', 2):sub(2), '\n') end)
-
-					hasError = hasError or not luaResVal
-				else
-					hasError = true
-					errorMsg = 'tool not found on '..tool.path
-				end
-			else
+			do
 				local t = {}
 
 				t[#t + 1] = tostring(tool.path):gsub("\\\\", "\\")
@@ -532,8 +682,94 @@ for i = 1, #extCalls, 1 do
 					tmpFile:close()
 				end
 
-				local cmd = table.concat(t, ' ')
+				cmd = table.concat(t, ' ')
+			end
 
+			if (getFileExtension(tool.path) == 'lua') then
+				local func = loadfile(tool.path)
+
+				print('luacall', cmd)
+				postprocLog:write('luacall: ', cmd, '\n')
+
+				if (func ~= nil) then
+					local luaResVal = nil
+
+					local function regError(msg, trace)
+						errorMsg = msg
+						hasError = true
+						postprocLog:write(msg, '\n')
+						postprocLog:write(trace, '\n')
+					end
+
+					local xpfunc = function()
+						return func(unpack(extCall.args))
+					end
+
+					local errorHandler = function(msg)
+						local trace = debug.traceback('', 2):sub(2)
+
+						regError(msg, trace)
+					end
+
+					--luaResVal = xpcall(xpfunc, errorHandler)
+
+					--hasError = hasError or not luaResVal
+
+					local function toolError(msg, trace)
+						regError(msg, trace)
+					end
+
+					--setfenv(func, copyTable(toolEnvTemplate))
+
+					local toolEnv = {}
+
+					toolEnv.toolError = toolError
+
+					local function runFile(path)
+						local s = [[--generated tool caller (]]..tool.name..[[)
+package.path = ]]..string.format('%q', package.path)..[[
+package.cpath = ]]..string.format('%q', package.cpath)..[[
+
+local func = loadfile(]]..string.format('%q', tool.path)..[[)
+
+local xpfunc = function()
+	local args = ]]..tableToLua(extCall.args)..[[
+
+	return func(unpack(args))
+end
+
+local errorHandler = function(msg)
+	local trace = debug.traceback('', 2):sub(2)
+
+	local cmd = string.format('toolError(%q, %q)', msg, trace)
+
+	remotedostring(cmd)
+end
+
+xpcall(xpfunc, errorHandler)]]
+
+						--local f = io.open(io.local_dir()..'sandboxer.lua', 'w+')
+
+						--f:write(s)
+
+						--f:close()
+
+						local sub = rings.new(toolEnv)
+
+						local ringRes, ringErrorMsg = sub:dostring(s)
+
+						if not ringRes then
+							hasError = true
+							errorMsg = 'sandboxer: '..tostring(ringErrorMsg)
+						end
+					end
+
+					runFile(tool.path)
+				else
+					hasError = true
+					errorMsg = 'tool not found on '..tool.path
+				end
+			else
 				print('call', cmd)
 				postprocLog:write('call: ', cmd, '\n')
 
@@ -546,29 +782,55 @@ for i = 1, #extCalls, 1 do
 				hasError = hasError or (resLevel ~= 0)
 			end
 		end
-
-		if hasError then
-			postprocLog:write('error: an error occurred', '\n')
-
-			if (resLevel ~= nil) then
-				postprocLog:write('error: tool returned error level '..tostring(resLevel), '\n')
-			end
-
-			if (errorMsg ~= nil) then
-				postprocLog:write('errorMsg: '..tostring(errorMsg), '\n')
-			end
-
-			throwError = true
-		end
 	else
-		postprocLog:write('tool ' .. extCall.name .. ' not defined')
+		hasError = true
+		errorMsg = 'tool ' .. extCall.name .. ' not defined'
+
+		print(errorMsg)
+		postprocLog:write(errorMsg)
+	end
+
+	if hasError then
+		postprocLog:write('error: an error occurred', '\n')
+
+		if (resLevel ~= nil) then
+			postprocLog:write('error: tool returned error level '..tostring(resLevel), '\n')
+		end
+
+		if (errorMsg ~= nil) then
+			postprocLog:write('errorMsg: '..tostring(errorMsg), '\n')
+		end
+
+		if ((tool == nil) or not tableContains(tool.flags, 'noErrorPrompt')) then
+			throwError = true
+			throwErrorMsg = errorMsg
+			throwErrorCall = cmd
+		end
+
+		break
 	end
 end
 
 postprocLog:close()
 
 if throwError then
-	error('postproc: there were errors, see '..logPath..' for details')
+	local t = {}
+
+	t[#t + 1] = 'postproc: there were errors, see '..logPath..' for details'
+
+	if (throwErrorCall ~= nil) then
+		t[#t + 1] = ''
+
+		t[#t + 1] = 'call:\n'..throwErrorCall
+	end
+
+	if (throwErrorMsg ~= nil) then
+		t[#t + 1] = ''
+
+		t[#t + 1] = 'errorMsg:\n'..throwErrorMsg
+	end
+
+	error(table.concat(t, '\n'), 0)
 end
 
 return true, (not noJasshelper)
