@@ -520,10 +520,10 @@ if (config_postprocSection ~= nil) then
 	end
 end
 
-local postprocStartup = tryloadfile(postproc_onStartupPath)
+local postproc_startup = tryloadfile(postproc_onStartupPath)
 
-if (postprocStartup ~= nil) then
-	postprocStartup(config, {wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+if (postproc_startup ~= nil) then
+	postproc_startup(config, {wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
 end
 
 function testmap(cmdline)
@@ -535,12 +535,12 @@ function testmap(cmdline)
 		cmdline = cmdline .. " -window"
 	end
     
-	local postprocTest = tryloadfile(postproc_onTestmapPath)
+	local postproc_testmap = tryloadfile(postproc_onTestmapPath)
 
-	if (postprocTest ~= nil) then
+	if (postproc_testmap ~= nil) then
 		local success = false
 
-		success, cmdline = postprocTest(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+		success, cmdline = postproc_testmap(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
 	end
 
 	wehack.execprocess(cmdline)
@@ -567,52 +567,43 @@ grim.log("running tool on save: "..cmdargs)
 		wehack.runprocess(cmdargs)
 		cmdargs = ""
 	end
-	-- Here I'll add a new configuration for jasshelper. moyack
-	if havejh and jh_enable.checked then
-		cmdline = jh_path .. "jasshelper\\jasshelper.exe"
-		if jh_debug.checked then
-			cmdline = cmdline .. " --debug"
-		end
-		if jh_disable.checked then
-			cmdline = cmdline .. " --nopreprocessor"
-		end
-		if jh_disableopt.checked then
-			cmdline = cmdline .. " --nooptimize"
-		end
-		cmdline = cmdline .. " "..jh_path.."jasshelper\\common.j "..jh_path.."jasshelper\\blizzard.j \"" .. mappath .."\""
 
-		toolresult = 0
+	mapvalid = true
 
-		local postprocSave = tryloadfile(postproc_onSavePath)
-		local runJasshelper = false
+	local postproc_save = tryloadfile(postproc_onSavePath)
+	local postproc_override = false
 
-		if (postprocSave == nil) then
-			runJasshelper = true
-		else
-			local success = false
+	if (postproc_save ~= nil) then
+		local success = false
 
-			success, runJasshelper = postprocSave(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+		success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
 
-			if not success then
-				toolresult = 1
+		mapvalid = mapvalid and success
+	end
+
+	if not postproc_override then
+		-- Here I'll add a new configuration for jasshelper. moyack
+		if havejh and jh_enable.checked then
+			cmdline = jh_path .. "jasshelper\\jasshelper.exe"
+			if jh_debug.checked then
+				cmdline = cmdline .. " --debug"
 			end
-		end
+			if jh_disable.checked then
+				cmdline = cmdline .. " --nopreprocessor"
+			end
+			if jh_disableopt.checked then
+				cmdline = cmdline .. " --nooptimize"
+			end
+			cmdline = cmdline .. " "..jh_path.."jasshelper\\common.j "..jh_path.."jasshelper\\blizzard.j \"" .. mappath .."\""
 
-		if runJasshelper then
 --			if jh_fast ~= nil and jh_fast.checked then
 --				toolresult = wehack.runjasshelper(jh_debug.checked, jh_disable.checked, "jasshelper\\common.j", "jasshelper\\blizzard.j", mappath, "")
 --			else
 				toolresult = wehack.runprocess2(cmdline)
 --			end
-		end
 
-		if toolresult == 0 then 
-			mapvalid = true
-		else
-			mapvalid = false
+			mapvalid = mapvalid and (toolresult == 0)
 		end
-		dofile("extendor.lua")
-		dofile("importextendor.lua")
 	end
 end
 

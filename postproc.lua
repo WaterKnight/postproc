@@ -833,4 +833,4 @@ if throwError then
 	error(table.concat(t, '\n'), 0)
 end
 
-return true, (not noJasshelper)
+return true, noJasshelper
