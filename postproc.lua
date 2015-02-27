@@ -309,7 +309,7 @@ end
 
 local postprocLog = io.open(logPath, 'w+')
 
-local noJasshelper = false
+local noDefaultTools = false
 
 mapPath = io.toAbsPath(mapPath)
 
@@ -564,10 +564,10 @@ for i, line in pairs(instructionLines) do
 		end
 	end
 
-	if line:find('noJasshelper') then
-		postprocLog:write('found noJasshelper ', ' at line ', lineNum, '\n')
+	if line:find('noDefaultTools') then
+		postprocLog:write('found noDefaultTools ', ' at line ', lineNum, '\n')
 
-		noJasshelper = true
+		noDefaultTools = true
 	end
 
 	local name, val = line:match('%$([%w%d%p_]+)%$ = ([%w%d%p_]+)')
@@ -833,4 +833,4 @@ if throwError then
 	error(table.concat(t, '\n'), 0)
 end
 
-return true, noJasshelper
+return true, noDefaultTools
