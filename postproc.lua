@@ -582,6 +582,7 @@ end
 instructionFile:close()
 
 vars['MAP'] = mapPath
+vars['WC3'] = wc3path
 
 local throwError = false
 local throwErrorMsg = nil
