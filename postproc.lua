@@ -70,7 +70,17 @@ local function createConfig()
 				local val = line:sub(posEnd + 1, line:len())
 
 				if ((type(val) == 'string')) then
-					val = val:match("\"(.*)\"")
+					local vals = {}
+
+					for val in val:gmatch("\"(.-)\"") do
+						vals[#vals + 1] = val
+					end
+
+					if (#vals > 1) then
+						val = vals
+					else
+						val = vals[1]
+					end
 				end
 
 				if (curSection ~= nil) then
@@ -252,6 +262,8 @@ io.toAbsPath = function(path, basePath)
 	return toAbsPath(path, basePath)
 end
 
+require 'lfs'
+
 io.curDir = function()
 	return toFolderPath(lfs.currentdir())
 end
@@ -271,7 +283,7 @@ io.local_dir = function(level)
 
 	path = path:gsub('/', '\\')
 
-	path = path:match('(.*\\)')
+	path = path:match('(.*\\)') or ''
 
 	if not io.isAbsPath(path) then
 		path = io.curDir()..path
@@ -280,21 +292,35 @@ io.local_dir = function(level)
 	return path
 end
 
-requireDir(io.toAbsPath(config.assignments['waterlua'], io.local_dir()))
-requireDir(io.toAbsPath(config.assignments['wc3libs'], io.local_dir()))
+local waterluaPath = config.assignments['waterlua']
+local wc3libsPath = config.assignments['wc3libs']
+
+assert(waterluaPath, 'no waterlua path found')
+assert(wc3libsPath, 'no wc3libs path found')
+
+requireDir(io.toAbsPath(waterluaPath, io.local_dir()))
+requireDir(io.toAbsPath(wc3libsPath, io.local_dir()))
 
 local toolEnvTemplate = copyTable(_G)
 
-local toolsLookupPath = config.assignments['toolsLookup']
+local toolsLookupPaths = config.assignments['toolsLookup']
 
-if (toolsLookupPath ~= nil) then
-	toolsLookupPath = toolsLookupPath:gsub('/', '\\')
+if (toolsLookupPaths ~= nil) then
+	toolsLookupPaths = totable(toolsLookupPaths)
 
-	if not toolsLookupPath:match('\\$') then
-		toolsLookupPath = toolsLookupPath..'\\'
+	for i, path in pairs(toolsLookupPaths) do
+		path = path:gsub('/', '\\')
+
+		if not path:match('\\$') then
+			path = path..'\\'
+		end
+
+		path = io.toAbsPath(path, io.local_dir())
+
+		toolsLookupPaths[i] = path
 	end
-
-	toolsLookupPath = io.toAbsPath(toolsLookupPath, io.local_dir())
+else
+	toolsLookupPaths = {}
 end
 
 local defLogPath = io.local_dir()..'log.txt'
@@ -318,6 +344,16 @@ if not io.isAbsPath(outputPath) then
 end
 
 copyFile(mapPath, outputPath, true)
+
+local lastOutputPathFilePath = io.local_dir()..'lastOutputPath.txt'
+
+local lastOutputPathFile = io.open(lastOutputPathFilePath, 'w+')
+
+assert(lastOutputPathFile, 'cannot open '..lastOutputPathFilePath)
+
+lastOutputPathFile:write(outputPath)
+
+lastOutputPathFile:close()
 
 mapPath = outputPath
 
@@ -365,6 +401,22 @@ if (externalToolsSection ~= nil) then
 	end
 end
 
+local toolsSlk = createSlk()
+
+toolsSlk:readFromFile(io.local_dir()..'configTools.slk')
+
+for name, objData in pairs(toolsSlk.objs) do
+	local exttool = {}
+
+	exttool.name = name
+	exttool.flags = (objData.vals['flags'] or ''):split(';')
+	exttool.path = objData.vals['path']
+	exttool.workDir = objData.vals['working directory']
+
+	exttools[#exttools + 1] = exttool
+	exttoolsByName[name] = exttool
+end
+
 local extCalls = {}
 local curExtCallBlock = nil
 
@@ -391,13 +443,15 @@ if (getFileExtension(instructionFilePath) == 'wct') then
 
 	local headTrig = root:getSub('headTrig')
 
-	local text = headTrig:getVal('text')
+	local text = headTrig:getVal('text', true)
 
-	for i, line in pairs(text:split('\n')) do
-		line = line:match('^%s*//!%s+i%s+(.*)') or line:match('^%s*//!%s+(.*)')
+	if (text ~= nil) then
+		for i, line in pairs(text:split('\n')) do
+			line = line:match('^%s*//!%s+i%s+(.*)') or line:match('^%s*//!%s+(.*)')
 
-		if (line ~= nil) then
-			instructionLines[#instructionLines + 1] = line
+			if (line ~= nil) then
+				instructionLines[#instructionLines + 1] = line
+			end
 		end
 	end
 else
@@ -610,11 +664,11 @@ for i = 1, #extCalls, 1 do
 
 		local tryTable = {}
 
-		tryTable[#tryTable + 1] = tool.path
+		tryTable[#tryTable + 1] = io.toAbsPath(tool.path, io.curDir())
 
 		if not io.isAbsPath(tool.path) then
-			if (toolsLookupPath ~= nil) then
-				tryTable[#tryTable + 1] = toolsLookupPath..tool.path
+			for i, path in pairs(toolsLookupPaths) do
+				tryTable[#tryTable + 1] = path..tool.path
 			end
 		end
 
@@ -690,6 +744,7 @@ for i = 1, #extCalls, 1 do
 				local func = loadfile(tool.path)
 
 				print('luacall', cmd)
+
 				postprocLog:write('luacall: ', cmd, '\n')
 
 				if (func ~= nil) then
@@ -766,6 +821,7 @@ xpcall(xpfunc, errorHandler)]]
 					end
 
 					runFile(tool.path)
+
 				else
 					hasError = true
 					errorMsg = 'tool not found on '..tool.path
@@ -777,7 +833,19 @@ xpcall(xpfunc, errorHandler)]]
 				if (wehack ~= nil) then
 					resLevel = wehack.runprocess2(cmd)
 				else
-					resLevel = runProg(tool.path, extCall.args)
+					local workDir = tool.workDir
+
+					if (workDir ~= nil) then
+						workDir = io.toAbsPath(workDir, getFolder(tool.path))
+					end
+print('workDir', workDir)
+					resLevel = osLib.runProg(nil, tool.path, extCall.args, nil, nil, workDir)
+
+					if (resLevel == true) then
+						resLevel = 0
+					else
+						resLevel = -1
+					end
 				end
 
 				hasError = hasError or (resLevel ~= 0)
@@ -802,7 +870,7 @@ xpcall(xpfunc, errorHandler)]]
 			postprocLog:write('errorMsg: '..tostring(errorMsg), '\n')
 		end
 
-		if ((tool == nil) or not tableContains(tool.flags, 'noErrorPrompt')) then
+		if ((tool == nil) or (resLevel == nil) or not tableContains(tool.flags, 'noErrorPrompt')) then
 			throwError = true
 			throwErrorMsg = errorMsg
 			throwErrorCall = cmd

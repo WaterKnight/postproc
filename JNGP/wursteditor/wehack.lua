@@ -27,10 +27,6 @@ haveext = grim.exists("grimext\\grimex.dll")
 if haveext then
 	utils = wehack.addmenu("Extensions")
 end
-haveumswe = haveext and grim.exists("umswe\\umswecore.lua")
-if haveumswe then
-	ums = wehack.addmenu("UMSWE")
-end
 
 whmenu = wehack.addmenu("Grimoire")
 wh_window = TogMenuEntry:New(whmenu,"Start War3 with -window",nil,true)
@@ -61,35 +57,7 @@ wh_alwaysenable = TogMenuEntry:New(whmenu,"Always allow trigger enable",
 wh_disablesound = TogMenuEntry:New(whmenu,"Mute editor sounds",nil,true)
 wh_firstsavenag = TogMenuEntry:New(whmenu,"Disable first save warning",nil,true)
 
--- when warmachine is turned on, war3err must not be on
---function setwar3err()
---	if wh_machine.checked then
---  	grim.setregstring(confregpath,"Enable war3err","off")
---    wehack.checkmenuentry(wh_enablewar3err.menu,wh_enablewar3err.id,0)
---  end
---end
-
--- when warmachine is turned on, war3err must not be on
---function setwarmachine()
---	if wh_enablewar3err.checked then
---  	grim.setregstring(confregpath,"Enable warmachine","off")
---    wehack.checkmenuentry(wh_machine.menu,wh_machine.id,0)
---  end
---end
-
---if not grim.isnewcompiler(path.."\\war3.exe") then
-  --wh_enablewar3err.cb = setwarmachine
-  --wh_machine.cb = setwar3err
---end
-
 wehack.addmenuseparator(whmenu)
-weukey = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WE Unlimited_is1"
-weuval = "InstallLocation"
-weupath = grim.getregpair(weukey,weuval)
-haveweu = grim.exists(weupath .. "WE Unlimited.exe")
-if haveweu then
-	wh_useweu = TogMenuEntry:New(whmenu,"Integrate WEU",nil,false)
-end
 
 usetestmapconf = (grim.getregpair(confregpath,"Use custom test map settings") == "on")
 function testmapconfig()
@@ -115,60 +83,137 @@ function aboutpopup()
 end
 wh_about = MenuEntry:New(whmenu,"About Grimoire ...",aboutpopup)
 
-havejh = grim.exists("jasshelper\\jasshelper.exe")
+-- ##WurstScript##
+havewurst = grim.exists("wurstscript\\wurstscript.exe")
+if havewurst then
+	wurstmenu = wehack.addmenu("WurstScript")
+	
+	function wurst_command()
+		if wurst_b_enable.checked then
+			return "wurstscript\\wurstscript_b.exe"
+		else
+			return "wurstscript\\wurstscript.exe"
+		end
+	end
+	
+	
+	wurst_enable = TogMenuEntry:New(wurstmenu,"Enable WurstScript",nil,true)
+	wurst_b_enable = TogMenuEntry:New(wurstmenu,"Use Wurst compilation server",nil,false)
+	
+	
+	function wurst_compilationserver_start()
+		wehack.execprocess("wurstscript\\wurstscript.exe -startServer")
+	end
+	
+	function wurst_compilationserver_stop()
+		wehack.execprocess("wurstscript\\wurstscript.exe -stopServer")
+	end
+	
+	-- TODO
+	--MenuEntry:New(wurstmenu,"Start Wurst compilation server ",wurst_compilationserver_start)
+	--MenuEntry:New(wurstmenu,"Stop Wurst compilation server ",wurst_compilationserver_stop)
+	
+	wehack.addmenuseparator(wurstmenu)
+	-- optimizer options
+	wurst_optenable = TogMenuEntry:New(wurstmenu,"Enable Froptimizer",nil,false)
+	wurst_localoptenable = TogMenuEntry:New(wurstmenu,"Enable (experimental) local optimizations",nil,false)
+	wurst_inliner = TogMenuEntry:New(wurstmenu, "Enable Inliner",nil,false)
+	
+	wehack.addmenuseparator(wurstmenu)
+	
+	-- debug options
+	wurst_stacktraces = TogMenuEntry:New(wurstmenu, "Enable stack-traces",nil,false)
+	wurst_nodebug = TogMenuEntry:New(wurstmenu, "Disable debug messages",nil,false)
+	wurst_debug = TogMenuEntry:New(wurstmenu,"Debug Mode",nil,false)
+	
+	wehack.addmenuseparator(wurstmenu)
+	
+	-- compiletime options
+	wurst_compiletimefunctions  = TogMenuEntry:New(wurstmenu, "Run compiletime functions",nil,false)
+	wurst_injectObjects  = TogMenuEntry:New(wurstmenu, "Inject compiletime objects",nil,false)
+	
+	wehack.addmenuseparator(wurstmenu)
+	
+	-- other tools
+	
+	
+	
+	function wurst_runfileexporter()
+		curmap = wehack.findmappath()
+		if curmap ~= "" then
+			wehack.execprocess(wurst_command() .. " --extractImports \"" .. curmap .. "\"")
+		else
+			wehack.messagebox("No map loaded. Try saving the map first.","Wurst",false)
+		end
+	end
+	
+	MenuEntry:New(wurstmenu,"Extract all imported files",wurst_runfileexporter)
+
+	wehack.addmenuseparator(wurstmenu)
+	
+	function wurstshowerr()
+	  	wehack.execprocess(wurst_command() .. " --showerrors")
+	end
+	
+	function wurstabout()
+	  	wehack.execprocess(wurst_command() .. " --about")
+	end
+	
+  -- TODO wurstshowerrm = MenuEntry:New(wurstmenu,"Show previous errors",wurstshowerr)
+  wurstaboutm = MenuEntry:New(wurstmenu,"About WurstScript ...",wurstabout)
+end
+
+
+
+
+
+-- ##EndWurstScript##
+
+-- ## Jasshelper ##
+--Here I'll add the custom menu to jasshelper. moyack
+jh_path = "vexorian"
+havejh = grim.exists("vexorianjasshelper\\jasshelper.exe")
 if havejh then
 	jhmenu = wehack.addmenu("JassHelper")
 	jh_enable = TogMenuEntry:New(jhmenu,"Enable JassHelper",nil,true)
+
+	
+	
+	wehack.addmenuseparator(jhmenu)
 	jh_debug = TogMenuEntry:New(jhmenu,"Debug Mode",nil,false)
 	jh_disable = TogMenuEntry:New(jhmenu,"Disable vJass syntax",nil,false)
-  jh_disableopt = TogMenuEntry:New(jhmenu,"Disable script optimization",nil,false)
---	if grim.exists("jasshelper\\jasshelper.dll") then
---		jh_fast = TogMenuEntry:New(jhmenu,"Fast external evaluation",nil,true)
---	else
---	  jh_fast = nil
---	end
+    jh_disableopt = TogMenuEntry:New(jhmenu,"Disable script optimization",nil,false)
+
 	wehack.addmenuseparator(jhmenu)
 	
 	function jhshowerr()
---		if jh_fast ~= nil and jh_fast.checked then
---			wehack.showpreviouserrors();
---		else
-	  	wehack.execprocess("jasshelper\\jasshelper.exe --showerrors")
---	  end
+	  	wehack.execprocess(jh_path.."jasshelper\\jasshelper.exe --showerrors")
 	end
 	
 	function jhabout()
---		if jh_fast ~= nil and jh_fast.checked then
---			wehack.jasshelperabout();
---		else
-	  	wehack.execprocess("jasshelper\\jasshelper.exe --about")
---	  end
+	  	wehack.execprocess(jh_path.."jasshelper\\jasshelper.exe --about")
 	end
 	
-  jhshowerrm = MenuEntry:New(jhmenu,"Show previous errors",jhshowerr)
-  jhaboutm = MenuEntry:New(jhmenu,"About JassHelper ...",jhabout)
+	jhshowerrm = MenuEntry:New(jhmenu,"Show previous errors",jhshowerr)
+	jhaboutm = MenuEntry:New(jhmenu,"About JassHelper ...",jhabout)
+	
+	
+	function jhshowhelp()
+		jhsetpath()
+		wehack.execprocess("starter.bat ./"..jh_path.."jasshelper\\jasshelpermanual.html")
+	end
+	
+	jhhelp = MenuEntry:New(jhmenu, "JassHelper Documentation...", jhshowhelp)
 end
+-- # end jasshelper #
 
--- Reinventing the Craft
-havertc = grim.exists("rtc\\rtcexehack.exe") and grim.exists("rtc\\rcncore.dll")
-if havertc then
-    rtcmenu = wehack.addmenu("Reinventing the Craft")
-    rtc_enabled = TogMenuEntry:New(rtcmenu, "Enable Reinventing the Craft", nil, true)
-	
-	wehack.addmenuseparator(rtcmenu)
-	function rtcabout()
-	  	wehack.execprocess("rtc\\rtcexehack.exe --about")
-	end
-    rtc_about = MenuEntry:New(rtcmenu, "About Reinventing the Craft ...", rtcabout)
-else
-    grim.log("Reinventing the Craft")
-    if(not grim.exists("rtc\\rtcexehack.exe")) then
-        grim.log("rtc\\rtcexehack.exe missing!")
-    end
-    if(not grim.exists("rtc\\rcncore.dll")) then
-        grim.log("rtc\\rcncore.dll missing!")
-    end
+-- # begin sharpcraft #
+haveSharpCraft = grim.exists("SharpCraft\\SharpCraft.exe")
+if haveSharpCraft then
+	sharpCraftMenu = wehack.addmenu("SharpCraft")
+	sharpCraftEnable = TogMenuEntry:New(sharpCraftMenu,"Run with ShapCraft",nil,true)
 end
+-- # end sharpcraft #
 
 -- # begin postproc #
 local function postproc_createConfig()
@@ -614,48 +659,26 @@ function showfirstsavewarning()
 end
 
 function testmap(cmdline)
-	--if havejh and jh_enable.checked and not mapvalid then
+	--if havewurst and wurst_enable.checked and not mapvalid then
 	--	return
 	--end
 	--wehack.messagebox(cmdline)
 	--mappath = strsplit(" ",cmdline)[2]
 	--compilemap_path(mappath)
 	
+	if haveSharpCraft and sharpCraftEnable.checked then
+		-- remove default .exe
+		local pos = string.find(cmdline, ".exe")
+		cmdline = string.sub(cmdline, 4 + pos)
+		-- replace with SharpCraft exe
+		cmdline = "SharpCraft\\SharpCraft.exe -game " .. cmdline
+	end
+	
 	if wh_opengl.checked then
 		cmdline = cmdline .. " -opengl"
 	end
 	if wh_window.checked then
 		cmdline = cmdline .. " -window"
-	end
-    if rtc_enabled.checked then
---		local args = string.gsub(cmdline,"\"([^\"]*)\" ","")
---		wehack.messagebox(args,"Grimoire",false)
---		cmdline = "startwar3.bat " .. args
-
-        local testmaparglist = argsplit(cmdline)
-        local len = table.getn(testmaparglist)
-        if len > 2 then
-            cmdline = "startwar3.bat"
-            --if not grim.exists(cmdline) then
-            --    cmdline = "NewGen Warcraft.exe" -- NewGen version doesn't use batch files
-            --end
-            for i = 2, len do
-                if (i < len) and (usetestmapconf) then
-                    local arglen = string.len(testmaparglist[i+1])
-                    if testmaparglist[i] == "-loadfile" and arglen > 3 then
-                        local ext = string.lower(string.sub(testmaparglist[i+1],arglen-4+1))
-
-                        if ext == ".w3m" or ext == ".w3x" then
-                            local substitute = wehack.setupwgcfile(testmaparglist[i+1]);
-                            if (substitute ~= testmaparglist[i+1]) then
-                                testmaparglist[i+1] = "\"" .. substitute .. "\""
-                            end
-                        end
-                    end
-                end
-                cmdline = cmdline .. " " .. testmaparglist[i]
-            end
-        end
 	end
 
 	if (havePostproc and postprocRunMapAuto.checked) then
@@ -677,8 +700,10 @@ function compilemap_path(mappath)
 		return
 	end
 	map = wehack.openarchive(mappath,15)
-	wehack.extractfile("jasshelper\\common.j","scripts\\common.j")
-	wehack.extractfile("jasshelper\\Blizzard.j","scripts\\Blizzard.j")
+	wehack.extractfile("wurstscript\\common.j","scripts\\common.j")
+	wehack.extractfile("wurstscript\\Blizzard.j","scripts\\Blizzard.j")
+	wehack.extractfile(jh_path.."jasshelper\\common.j","scripts\\common.j")
+	wehack.extractfile(jh_path.."jasshelper\\Blizzard.j","scripts\\Blizzard.j")
 	wehack.extractfile("war3map.j","war3map.j")
 	wehack.closearchive(map)
 	if cmdargs ~= "" then
@@ -692,7 +717,7 @@ grim.log("running tool on save: "..cmdargs)
 		wehack.runprocess(cmdargs)
 		cmdargs = ""
 	end
-
+	
 	mapvalid = true
 
 	local postproc_override = false
@@ -711,8 +736,7 @@ grim.log("running tool on save: "..cmdargs)
 
 	if (not postprocBlockTools.checked and not postproc_override) then
 		if havejh and jh_enable.checked then
-
-			cmdline = "jasshelper\\jasshelper.exe"
+			cmdline = jh_path .. "jasshelper\\jasshelper.exe"
 			if jh_debug.checked then
 				cmdline = cmdline .. " --debug"
 			end
@@ -722,17 +746,62 @@ grim.log("running tool on save: "..cmdargs)
 			if jh_disableopt.checked then
 				cmdline = cmdline .. " --nooptimize"
 			end
-			cmdline = cmdline .. " jasshelper\\common.j jasshelper\\blizzard.j \"" .. mappath .."\""
-
+			cmdline = cmdline .. " "..jh_path.."jasshelper\\common.j "..jh_path.."jasshelper\\blizzard.j \"" .. mappath .."\""
 			toolresult = 0
-
---			if jh_fast ~= nil and jh_fast.checked then
---				toolresult = wehack.runjasshelper(jh_debug.checked, jh_disable.checked, "jasshelper\\common.j", "jasshelper\\blizzard.j", mappath, "")
---			else
+			toolresult = wehack.runprocess2(cmdline)
+			if toolresult == 0 then 
+				mapvalid = true
+			else
+				mapvalid = false
+			end
+		end
+		
+		if havewurst and wurst_enable.checked then
+			cmdline = wurst_command()
+			cmdline = cmdline .. " -gui"
+			if wurst_debug.checked then
+				--cmdline = cmdline .. " --debug"
+			end
+			--if wurst_disable.checked then
+				--cmdline = cmdline .. " --nopreprocessor"
+			--end
+			if wurst_optenable.checked then
+				cmdline = cmdline .. " -opt"
+			end
+			if wurst_localoptenable.checked then
+				cmdline = cmdline .. " -localOptimizations"
+			end
+			if wurst_inliner.checked then
+				cmdline = cmdline .. " -inline"
+			end
+			if wurst_stacktraces.checked then
+				cmdline = cmdline  .. " -stacktraces"
+			end
+			if wurst_nodebug.checked then
+				cmdline = cmdline  .. " -nodebug"
+			end
+			if wurst_compiletimefunctions.checked then
+				cmdline = cmdline .. " -runcompiletimefunctions"
+			end
+			if wurst_injectObjects.checked then
+				cmdline = cmdline .. " -injectobjects"
+			end
+			
+			-- cmdline = cmdline .. " -lib ./wurstscript/lib/"
+			cmdline = cmdline .. " wurstscript\\common.j wurstscript\\Blizzard.j \"" .. mappath .."\""
+			
+			toolresult = 0
+	--		if wurst_fast ~= nil and wurst_fast.checked then
+	--			toolresult = wehack.runjasshelper(wurst_debug.checked, wurst_disable.checked, "jasshelper\\common.j", "jasshelper\\blizzard.j", mappath, "")
+	--		else
 				toolresult = wehack.runprocess2(cmdline)
---			end
-
-			mapvalid = mapvalid and (toolresult == 0)
+	--		end
+			if toolresult == 0 then 
+				mapvalid = true
+			else
+				wehack.messagebox("Could not run Wurst.","Wurst",false)
+				mapvalid = false
+			end
 		end
 	end
 end
@@ -780,117 +849,5 @@ if haveext then
 end
 
 
-if haveumswe then
-	ums_enabled = TogMenuEntry:New(ums,"Enable UMSWE",nil,false)
-	ums_cat = TogMenuEntry:New(ums,"Custom Editor Categories",nil,false)
-	ums_til = TogMenuEntry:New(ums,"Non Tileset Specific Objects",nil,false)
-	ums_pat = TogMenuEntry:New(ums,"Custom Tile Pathability",nil,false)
-	
-	function unloadumswe()
-		local umswehandle = wehack.getarchivehandle("umswe\\umswe.mpq")
-		if umswehandle ~= 0 then
-			wehack.closearchive(umswehandle)
-			wehack.setarchivehandle("umswe\\umswe.mpq", 0)
-		end
-	end
-	
-	function getumsweargs()
-		local umsargs = "";
-		if (ums_enabled.checked) then
-			umsargs = umsargs .. " umscore=1"
-		else
-			umsargs = umsargs .. " umscore=0"
-		end
-		if (ums_cat.checked) then
-			umsargs = umsargs .. " umscategories=1"
-		else
-			umsargs = umsargs .. " umscategories=0"
-		end
-		if (ums_til.checked) then
-			umsargs = umsargs .. " umstiles=1"
-		else
-			umsargs = umsargs .. " umstiles=0"
-		end
-		if (ums_pat.checked) then
-			umsargs = umsargs .. " umspathing=1"
-		else
-			umsargs = umsargs .. " umspathing=0"
-		end
-		return umsargs
-	end
-	
-	function toggleumswe()
-		if not isstartup then
-			unloadumswe()
-			wehack.setwaitcursor(true)
-			wehack.runprocess("grimext\\PatchGenerator.exe umswe\\umswecore.lua "..wehack.getlookupfolders().." umswe"..getumsweargs())
-			wehack.setwaitcursor(false)
-		end
-	end
-	
-	function toggleumswecat()
-		if ums_enabled.checked and not isstartup then
-			unloadumswe()
-			wehack.setwaitcursor(true)
-			wehack.runprocess("grimext\\PatchGenerator.exe umswe\\umswecategories.lua "..wehack.getlookupfolders().." umswe"..getumsweargs())
-			wehack.setwaitcursor(false)
-		end
-	end
-	
-	function toggleumswetil()
-		if ums_enabled.checked and not isstartup then
-			unloadumswe()
-			wehack.setwaitcursor(true)
-			wehack.runprocess("grimext\\PatchGenerator.exe umswe\\umswetilesets.lua "..wehack.getlookupfolders().." umswe"..getumsweargs())
-			wehack.setwaitcursor(false)
-		end
-	end
-	
-	function toggleumswepat(newstate)
-		if ums_enabled.checked and not isstartup then
-			unloadumswe()
-			wehack.setwaitcursor(true)
-			wehack.runprocess("grimext\\PatchGenerator.exe umswe\\umswepathing.lua "..wehack.getlookupfolders().." umswe"..getumsweargs())
-			wehack.setwaitcursor(false)
-		end
-	end
-	
-	ums_enabled.cb = toggleumswe
-	ums_cat.cb = toggleumswecat
-	ums_til.cb = toggleumswetil
-	ums_pat.cb = toggleumswepat
-	
-	function categoryconfig()
-		if wehack.showcategorydialog("umswe\\umswecategories.conf.lua") and ums_enabled.checked then
-			if ums_cat.checked then
-				unloadumswe()
-				wehack.setwaitcursor(true)
-				wehack.runprocess("grimext\\PatchGenerator.exe umswe\\umswecategories.lua "..wehack.getlookupfolders().." umswe"..getumsweargs())
-				wehack.setwaitcursor(false)
-			end
-		end
-	end
-	
-	function pathabilityconfig()
-		unloadumswe()
-		if wehack.showpathdialog("umswe\\umswepathing.conf.lua","umswe\\umswe.mpq") and ums_enabled.checked then
-			if ums_pat.checked then
-				wehack.setwaitcursor(true)
-				wehack.runprocess("grimext\\PatchGenerator.exe umswe\\umswepathing.lua "..wehack.getlookupfolders().." umswe"..getumsweargs())
-				wehack.setwaitcursor(false)
-			end
-		end
-	end
-	
-	function umsweabout()
-		wehack.showumsweabout("UMSWE 5.0")
-	end
-	
-	wehack.addmenuseparator(ums)
-	ums_catconf = MenuEntry:New(ums,"Customize Editor Categories",categoryconfig)
-	ums_pathconf = MenuEntry:New(ums,"Customize Tile Pathability",pathabilityconfig)
-	ums_about = MenuEntry:New(ums,"About UMSWE ...",umsweabout)
-	
-end
 
 isstartup = false

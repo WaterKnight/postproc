@@ -28,4 +28,87 @@ local postproc, loadErr = loadfile(postprocPath)
 
 assert(postproc, 'cannot load '..tostring(postprocPath)..'\n'..tostring(loadErr))
 
-return postproc(mapPath, outputPath, nil, paramsMap['wc3path'], paramsMap['configPath'], paramsMap['logPath'])
+local function toLua(val)
+	if (val == nil) then
+		return 'nil'
+	end
+
+	if (type(val) == 'string') then
+		return string.format('%q', val)
+	end
+
+	return nil
+end
+
+local s = [[
+	--error(tostring(string.gsub))
+
+	local mapPath = ]]..toLua(mapPath)..[[
+	local outputPath = ]]..toLua(outputPath)..[[
+	local wc3path = ]]..toLua(paramsMap['wc3path'])..[[
+	local configPath = ]]..toLua(paramsMap['configPath'])..[[
+	local logPath = ]]..toLua(paramsMap['logPath'])..[[
+
+	local postprocPath = ]]..toLua(postprocPath)..[[
+
+	local postproc, loadErr = loadfile(postprocPath)
+
+	assert(postproc, 'cannot load '..tostring(postprocPath)..'\n'..tostring(loadErr))
+
+	return postproc(mapPath, outputPath, nil, wc3path, configPath, logPath)
+]]
+
+localDir = debug.getinfo(1, 'S').source:sub(2):match('(.*'..'\\'..')')
+
+local function addPackagePath(path)
+	assert(path, 'no path')
+
+	local luaPath = path..'.lua'
+
+	if not package.path:match(luaPath) then
+		package.path = package.path..';'..luaPath
+	end
+
+	local dllPath = path..'.dll'
+
+	if not package.path:match(dllPath) then
+		package.cpath = package.cpath..';'..dllPath
+	end
+end
+
+addPackagePath(localDir..'?')
+addPackagePath(localDir..'?\\init')
+addPackagePath(localDir..'?\\?')
+
+require 'rings'
+
+local sub = rings.new(t)
+
+--error(tostring(paramsMap))
+
+--local res, msg, trace = sub:dostring([[postproc(mapPath, outputPath, nil, paramsMap['wc3path'], paramsMap['configPath'], paramsMap['logPath'])]])
+
+local function pack(...)
+	return arg
+end
+
+local results = pack(sub:dostring(s))
+
+local success = results[1]
+
+if not success then
+	local msg = results[2]
+	local trace = results[3]
+
+	error(msg)
+
+	return false
+end
+
+local noDefaultTools = results[3]
+
+--error(tostring(noDefaultTools))
+
+return true, noDefaultTools
+
+--return postproc(mapPath, outputPath, nil, paramsMap['wc3path'], paramsMap['configPath'], paramsMap['logPath'])

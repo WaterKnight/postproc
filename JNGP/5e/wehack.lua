@@ -166,6 +166,199 @@ if havejh then
 	jhhelp = MenuEntry:New(jhmenu, "JassHelper Documentation...", jhshowhelp)
 end
 
+-- # begin postproc #
+local function postproc_createConfig()
+	local this = {}
+
+	this.assignments = {}
+	this.sections = {}
+
+	function this:readFromFile(path, ignoreNotFound)
+		assert(path, 'configParser: no path passed')
+
+		local f = io.open(path, 'r')
+
+		if not ignoreNotFound then
+			assert(f, 'configParser: cannot open file '..tostring(path))
+		end
+
+		local curSection = nil
+
+		for line in f:lines() do
+			local sectionName = line:match('%['..'([%w%d%p_]*)'..'%]')
+
+			if (sectionName ~= nil) then
+				curSection = this.sections[sectionName]
+
+				if (curSection == nil) then
+					curSection = {}
+
+					this.sections[sectionName] = curSection
+
+					curSection.assignments = {}
+					curSection.lines = {}
+				end
+			elseif (curSection ~= nil) then
+				curSection.lines[#curSection.lines + 1] = line
+			end
+
+			local pos, posEnd = line:find('=')
+
+			if pos then
+				local name = line:sub(1, pos - 1)
+				local val = line:sub(posEnd + 1, line:len())
+
+				if ((type(val) == 'string')) then
+					val = val:match("\"(.*)\"")
+				end
+
+				if (curSection ~= nil) then
+					curSection.assignments[name] = val
+				else
+					this.assignments[name] = val
+				end
+			end
+		end
+
+		f:close()
+	end
+
+	return this
+end
+
+local config = postproc_createConfig()
+
+local configPath = 'jasshelper.conf'
+
+config:readFromFile(configPath)
+
+local config_postprocSection = config.sections['postproc']
+
+local postproc_dir
+local postproc_logPath
+local postproc_outputPathNoExt
+
+local postproc_onStartupPath
+local postproc_onSavePath
+local postproc_onTestmapPath
+local postproc_requestInfo
+
+local function tryloadfile(path)
+	if (path == nil) then
+		return nil
+	end
+
+	return loadfile(path)
+end
+
+havePostproc = (config_postprocSection ~= nil)
+
+if (config_postprocSection ~= nil) then
+	postproc_dir = config_postprocSection.assignments['postprocDir']
+	postproc_logPath = config_postprocSection.assignments['logPath']
+	postproc_outputPathNoExt = config_postprocSection.assignments['outputPathNoExt']
+
+	if (postproc_dir ~= nil) then
+		if not postproc_dir:match('\\$') then
+			postproc_dir = postproc_dir..'\\'
+		end
+
+		postproc_onStartupPath = postproc_dir..'JNGP\\jngp_onStartup.lua'
+		postproc_onSavePath = postproc_dir..'JNGP\\jngp_onSave.lua'
+		postproc_onTestmapPath = postproc_dir..'JNGP\\jngp_onTestmap.lua'
+		postproc_requestInfo = tryloadfile(postproc_dir..'JNGP\\jngp_requestInfo.lua')
+
+		local t = {postproc_onStartupPath, postproc_onSavePath, postproc_onTestmapPath}
+		local t2 = {}
+
+		for i = 1, #t, 1 do
+			if (tryloadfile(t[i]) == nil) then
+				t2[#t2 + 1] = t[i]
+			end
+		end
+
+		if (#t2 > 0) then
+			wehack.messagebox('warning: found postproc config section but could not load files:\n'..table.concat(t2, '\n'))
+		end
+	end
+end
+
+local postproc_startup = tryloadfile(postproc_onStartupPath)
+
+if (postproc_startup ~= nil) then
+	postproc_startup(config, {wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+end
+
+if havePostproc then
+	postprocMenu = wehack.addmenu("postproc")
+	postprocEnable = TogMenuEntry:New(postprocMenu, "Enable", nil, true)
+
+	wehack.addmenuseparator(postprocMenu)
+
+	postprocBlockTools = TogMenuEntry:New(postprocMenu, "Block other compiling tools", nil, false)
+
+	postprocRunMapAuto = TogMenuEntry:New(postprocMenu, "Use last compiled map when testing", nil, false)
+
+	wehack.addmenuseparator(postprocMenu)
+
+	local function showPaths()
+		local t = {}
+
+		t[#t + 1] = "postprocDir="..postproc_dir
+		t[#t + 1] = "logPath="..postproc_logPath
+		t[#t + 1] = "outputPathNoExt="..postproc_outputPathNoExt
+
+		wehack.messagebox(table.concat(t, '\n'), 'postproc paths')
+	end
+
+	postprocShowPaths = MenuEntry:New(postprocMenu, "Show current paths", showPaths)
+
+	local function showConfig()
+		os.execute("start \"\" \""..postproc_dir.."config.conf".."\"")
+	end
+
+	postprocShowConfig = MenuEntry:New(postprocMenu, "Show config", showConfig)
+
+	local function showConfigTools()
+		os.execute("start \"\" \""..postproc_dir.."configTools.slk".."\"")
+	end
+
+	postprocShowConfigTools = MenuEntry:New(postprocMenu, "Show tools", showConfigTools)
+
+	local function showJasshelperConf()
+		os.execute("start \"\" \"".."jasshelper.conf".."\"")
+	end
+
+	postprocShowJasshelperConf = MenuEntry:New(postprocMenu, "Show jasshelper.conf", showJasshelperConf)
+
+	local function showLog()
+		os.execute("start \"\" \""..postproc_logPath.."\"")
+	end
+
+	postprocShowLog = MenuEntry:New(postprocMenu, "Show log", showLog)
+
+	local function runMap()
+		if (postproc_requestInfo == nil) then
+			wehack.messagebox('could not open requestInfo')
+
+			return
+		end
+
+		local t = postproc_requestInfo()
+
+		local mapPath = t.getLastOutputPath(postproc_dir)
+
+		local cmdline = "\""..path.."\\War3.exe\"".." -loadfile \""..mapPath.."\""
+
+		testmap(cmdline)
+	end
+
+	wehack.addmenuseparator(postprocMenu)
+
+	postprocRunMap = MenuEntry:New(postprocMenu, "Run last compiled map", runMap)
+end
+-- # end postproc #
+
 function initshellext()
     local first, last = string.find(grim.getregpair("HKEY_CLASSES_ROOT\\WorldEdit.Scenario\\shell\\open\\command\\", ""),"NewGen",1)
     if first then
@@ -408,126 +601,7 @@ function showfirstsavewarning()
 	end
 end
 
-local function postproc_createConfig()
-	local this = {}
-
-	this.assignments = {}
-	this.sections = {}
-
-	function this:readFromFile(path, ignoreNotFound)
-		assert(path, 'configParser: no path passed')
-
-		local f = io.open(path, 'r')
-
-		if not ignoreNotFound then
-			assert(f, 'configParser: cannot open file '..tostring(path))
-		end
-
-		local curSection = nil
-
-		for line in f:lines() do
-			local sectionName = line:match('%['..'([%w%d%p_]*)'..'%]')
-
-			if (sectionName ~= nil) then
-				curSection = this.sections[sectionName]
-
-				if (curSection == nil) then
-					curSection = {}
-
-					this.sections[sectionName] = curSection
-
-					curSection.assignments = {}
-					curSection.lines = {}
-				end
-			elseif (curSection ~= nil) then
-				curSection.lines[#curSection.lines + 1] = line
-			end
-
-			local pos, posEnd = line:find('=')
-
-			if pos then
-				local name = line:sub(1, pos - 1)
-				local val = line:sub(posEnd + 1, line:len())
-
-				if ((type(val) == 'string')) then
-					val = val:match("\"(.*)\"")
-				end
-
-				if (curSection ~= nil) then
-					curSection.assignments[name] = val
-				else
-					this.assignments[name] = val
-				end
-			end
-		end
-
-		f:close()
-	end
-
-	return this
-end
-
-local config = postproc_createConfig()
-
-local configPath = 'jasshelper.conf'
-
-config:readFromFile(configPath)
-
-local config_postprocSection = config.sections['postproc']
-
-local postproc_dir
-local postproc_logPath
-local postproc_outputPathNoExt
-
-local postproc_onStartupPath
-local postproc_onSavePath
-local postproc_onTestmapPath
-
-local function tryloadfile(path)
-	if (path == nil) then
-		return nil
-	end
-
-	return loadfile(path)
-end
-
-if (config_postprocSection ~= nil) then
-	postproc_dir = config_postprocSection.assignments['postprocDir']
-	postproc_logPath = config_postprocSection.assignments['logPath']
-	postproc_outputPathNoExt = config_postprocSection.assignments['outputPathNoExt']
-
-	if (postproc_dir ~= nil) then
-		if not postproc_dir:match('\\$') then
-			postproc_dir = postproc_dir..'\\'
-		end
-
-		postproc_onStartupPath = postproc_dir..'JNGP\\jngp_onStartup.lua'
-		postproc_onSavePath = postproc_dir..'JNGP\\jngp_onSave.lua'
-		postproc_onTestmapPath = postproc_dir..'JNGP\\jngp_onTestmap.lua'
-
-		local t = {postproc_onStartupPath, postproc_onSavePath, postproc_onTestmapPath}
-		local t2 = {}
-
-		for i = 1, #t, 1 do
-			if (tryloadfile(t[i]) == nil) then
-				t2[#t2 + 1] = t[i]
-			end
-		end
-
-		if (#t2 > 0) then
-			wehack.messagebox('warning: found postproc config section but could not load files:\n'..table.concat(t2, '\n'))
-		end
-	end
-end
-
-local postproc_startup = tryloadfile(postproc_onStartupPath)
-
-if (postproc_startup ~= nil) then
-	postproc_startup(config, {wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
-end
-
 function testmap(cmdline)
-	
 	if wh_opengl.checked then
 		cmdline = cmdline .. " -opengl"
 	end
@@ -535,12 +609,14 @@ function testmap(cmdline)
 		cmdline = cmdline .. " -window"
 	end
     
-	local postproc_testmap = tryloadfile(postproc_onTestmapPath)
+	if (havePostproc and postprocRunMapAuto.checked) then
+		local postproc_testmap = tryloadfile(postproc_onTestmapPath)
 
-	if (postproc_testmap ~= nil) then
-		local success = false
+		if (postproc_testmap ~= nil) then
+			local success = false
 
-		success, cmdline = postproc_testmap(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+			success, cmdline = postproc_testmap(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+		end
 	end
 
 	wehack.execprocess(cmdline)
@@ -570,18 +646,21 @@ grim.log("running tool on save: "..cmdargs)
 
 	mapvalid = true
 
-	local postproc_save = tryloadfile(postproc_onSavePath)
 	local postproc_override = false
 
-	if (postproc_save ~= nil) then
-		local success = false
+	if (havePostproc and postprocEnable.checked) then
+		local postproc_save = tryloadfile(postproc_onSavePath)
 
-		success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+		if (postproc_save ~= nil) then
+			local success = false
 
-		mapvalid = mapvalid and success
+			success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+
+			mapvalid = mapvalid and success
+		end
 	end
 
-	if not postproc_override then
+	if (not postprocBlockTools.checked and not postproc_override) then
 		-- Here I'll add a new configuration for jasshelper. moyack
 		if havejh and jh_enable.checked then
 			cmdline = jh_path .. "jasshelper\\jasshelper.exe"
