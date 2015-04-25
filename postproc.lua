@@ -635,6 +635,10 @@ end
 
 instructionFile:close()
 
+if (wc3path == nil) then
+	wc3path = config.assignments['wc3path']
+end
+
 vars['MAP'] = mapPath
 vars['WC3'] = wc3path
 
@@ -751,7 +755,7 @@ for i = 1, #extCalls, 1 do
 					local luaResVal = nil
 
 					local function regError(msg, trace)
-						errorMsg = msg
+						errorMsg = msg..'\n'..trace
 						hasError = true
 						postprocLog:write(msg, '\n')
 						postprocLog:write(trace, '\n')
@@ -823,8 +827,15 @@ xpcall(xpfunc, errorHandler)]]
 					runFile(tool.path)
 
 				else
+					local found, notFoundMsg = syntaxCheck(tool.path)
+
 					hasError = true
-					errorMsg = 'tool not found on '..tool.path
+
+					if not found then
+						errorMsg = notFoundMsg
+					else
+						errorMsg = 'tool not found on '..tool.path
+					end
 				end
 			else
 				print('call', cmd)

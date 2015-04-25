@@ -7,6 +7,7 @@ assert(config, 'no config')
 assert(paramsMap, 'no paramsMap')
 
 local cmdline = paramsMap['cmdline']
+local postprocDir = paramsMap['postprocDir']
 local wc3path = paramsMap['wc3path']
 local outputPathNoExt = paramsMap['outputPathNoExt']
 
@@ -146,5 +147,8 @@ if doIt then
 end
 
 --error(cmdline)
+local logTrackerCmd = [["]]..postprocDir..[[logTracker\logTrackerWait.bat]]..[[" "]]..wc3path..[["]]
+--error(logTrackerCmd)
+wehack.execprocess(logTrackerCmd)
 
 return true, cmdline
