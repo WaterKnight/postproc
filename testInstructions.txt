@@ -1,3 +1,0 @@
-
-
-//! post wurstscript wurstscript\common.j wurstscript\blizzard.j $MAP$ -gui
