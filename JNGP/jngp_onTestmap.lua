@@ -10,6 +10,8 @@ local cmdline = paramsMap['cmdline']
 local postprocDir = paramsMap['postprocDir']
 local wc3path = paramsMap['wc3path']
 local outputPathNoExt = paramsMap['outputPathNoExt']
+local forcePostproc = paramsMap['forcePostproc']
+local startLogTracker = paramsMap['startLogTracker']
 
 assert(cmdline, 'no cmdline')
 assert(wc3path, 'no wc3path')
@@ -146,9 +148,10 @@ if doIt then
 	end
 end
 
---error(cmdline)
-local logTrackerCmd = [["]]..postprocDir..[[logTracker\logTrackerWait.bat]]..[[" "]]..wc3path..[["]]
---error(logTrackerCmd)
-wehack.execprocess(logTrackerCmd)
+if ((doIt or forcePostproc) and startLogTracker) then
+	local logTrackerCmd = [["]]..postprocDir..[[logTracker\logTrackerWait.bat]]..[[" "]]..wc3path..[["]]
+
+	wehack.execprocess(logTrackerCmd)
+end
 
 return true, cmdline

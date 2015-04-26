@@ -289,13 +289,19 @@ if (postproc_startup ~= nil) then
 	postproc_startup(config, {wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
 end
 
+local postproc_forcingSave = false
+local postproc_forcingTest = false
+
 if havePostproc then
 	postprocMenu = wehack.addmenu("postproc")
+
 	postprocEnable = TogMenuEntry:New(postprocMenu, "Enable", nil, true)
 
 	wehack.addmenuseparator(postprocMenu)
 
 	postprocBlockTools = TogMenuEntry:New(postprocMenu, "Block other compiling tools", nil, false)
+
+	postprocSaveMapAuto = TogMenuEntry:New(postprocMenu, "Use postproc when map is being saved", nil, false)
 
 	postprocRunMapAuto = TogMenuEntry:New(postprocMenu, "Use last compiled map when testing", nil, false)
 
@@ -337,6 +343,20 @@ if havePostproc then
 
 	postprocShowLog = MenuEntry:New(postprocMenu, "Show log", showLog)
 
+	wehack.addmenuseparator(postprocMenu)
+
+	local function saveMap()
+		postproc_forcingSave = true
+
+		compilemap()
+
+		postproc_forcingSave = false
+	end
+
+	postprocSaveMap = MenuEntry:New(postprocMenu, "Save and compile map", saveMap)
+
+	postprocUseLogTracker = TogMenuEntry:New(postprocMenu, "Start LogTracker when testing", nil, false)
+
 	local function runMap()
 		if (postproc_requestInfo == nil) then
 			wehack.messagebox('could not open requestInfo')
@@ -350,10 +370,12 @@ if havePostproc then
 
 		local cmdline = "\""..path.."\\War3.exe\"".." -loadfile \""..mapPath.."\""
 
-		testmap(cmdline)
-	end
+		postproc_forcingTest = true
 
-	wehack.addmenuseparator(postprocMenu)
+		testmap(cmdline)
+
+		postproc_forcingTest = false
+	end
 
 	postprocRunMap = MenuEntry:New(postprocMenu, "Run last compiled map", runMap)
 end
@@ -609,14 +631,14 @@ function testmap(cmdline)
 		cmdline = cmdline .. " -window"
 	end
     
-	if (havePostproc and postprocRunMapAuto.checked) then
+	if (havePostproc and (postproc_forcingTest or (postprocEnable.checked and postprocRunMapAuto.checked))) then
 		local postproc_testmap = tryloadfile(postproc_onTestmapPath)
 
-		if (postproc_testmap ~= nil) then
-			local success = false
+		assert(postproc_testmap, 'could not load '..tostring(postproc_onTestmapPath))
 
-			success, cmdline = postproc_testmap(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
-		end
+		local success = false
+
+		success, cmdline = postproc_testmap(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, forcePostproc = postproc_forcingTest, startLogTracker = postprocUseLogTracker.checked})
 	end
 
 	wehack.execprocess(cmdline)
@@ -648,19 +670,19 @@ grim.log("running tool on save: "..cmdargs)
 
 	local postproc_override = false
 
-	if (havePostproc and postprocEnable.checked) then
+	if (havePostproc and (postproc_forcingSave or (postprocEnable.checked and postprocSaveMapAuto.checked))) then
 		local postproc_save = tryloadfile(postproc_onSavePath)
 
-		if (postproc_save ~= nil) then
-			local success = false
+		assert(postproc_save, 'could not load '..tostring(postproc_onSavePath))
 
-			success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+		local success = false
 
-			mapvalid = mapvalid and success
-		end
+		success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+
+		mapvalid = mapvalid and success
 	end
 
-	if (not postprocBlockTools.checked and not postproc_override) then
+	if (not havePostproc or (not postprocEnable.checked or (not postprocBlockTools.checked and not postproc_override) and not postproc_forcingSave)) then
 		-- Here I'll add a new configuration for jasshelper. moyack
 		if havejh and jh_enable.checked then
 			cmdline = jh_path .. "jasshelper\\jasshelper.exe"

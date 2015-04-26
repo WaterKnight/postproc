@@ -1,4 +1,4 @@
-package.path = package.path..';'..[[D:\Warcraft III\Mapping\postproc\logTracker\?\init.lua]]
+package.path = package.path..';'..[[.\?\init.lua]]
 
 require 'waterlua'
 

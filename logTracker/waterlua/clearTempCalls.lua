@@ -1,0 +1,3 @@
+require 'init'
+
+osLib.clearTempCalls()
