@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;Y14;X4;D0 0 13 3
+B;Y15;X4;D0 0 14 3
 C;Y1;X1;K"name"
 C;X2;K"path"
 C;X3;K"working directory"
@@ -54,6 +54,10 @@ C;X3;K""
 C;X4;K""
 C;Y14;X1;K"objForJass_insertNatives"
 C;X2;K"objForJass\insertNatives.lua"
+C;X3;K""
+C;X4;K""
+C;Y15;X1;K"importLocalResources"
+C;X2;K"importLocalResources\importLocalResources.lua"
 C;X3;K""
 C;X4;K""
 E
