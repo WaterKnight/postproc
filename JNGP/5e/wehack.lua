@@ -243,7 +243,21 @@ local postproc_onSavePath
 local postproc_onTestmapPath
 local postproc_requestInfo
 
-local function tryloadfile(path)
+local function tryloadfile(path, doShell)
+	if doShell then
+		assert(postproc_dir, 'no postproc dir')
+
+		local shellPath = postproc_dir..[[JNGP\jngp_shell.lua]]
+
+		local f = loadfile(shellPath)
+
+		assert(f, 'cannot open '..tostring(shellPath))
+
+		f()
+
+		return jngp_createShell(path)
+	end
+
 	if (path == nil) then
 		return nil
 	end
@@ -283,10 +297,10 @@ if (config_postprocSection ~= nil) then
 	end
 end
 
-local postproc_startup = tryloadfile(postproc_onStartupPath)
+local postproc_startup = tryloadfile(postproc_onStartupPath, true)
 
 if (postproc_startup ~= nil) then
-	postproc_startup(config, {wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+	postproc_startup:exec({wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
 end
 
 local postproc_forcingSave = false
@@ -294,7 +308,7 @@ local postproc_forcingTest = false
 
 if havePostproc then
 	postprocMenu = wehack.addmenu("postproc")
-
+	
 	postprocEnable = TogMenuEntry:New(postprocMenu, "Enable", nil, true)
 
 	wehack.addmenuseparator(postprocMenu)
@@ -304,6 +318,34 @@ if havePostproc then
 	postprocSaveMapAuto = TogMenuEntry:New(postprocMenu, "Use postproc when map is being saved", nil, false)
 
 	postprocRunMapAuto = TogMenuEntry:New(postprocMenu, "Use last compiled map when testing", nil, false)
+
+	wehack.addmenuseparator(postprocMenu)
+
+	local function editInstructions()
+		local mapPath = wehack.findmappath()
+		
+		if (mapPath == nil) then
+			wehack.messagebox([[No map opened.]], 'postproc', true)
+			
+			return
+		end
+
+		if (mapPath == '') then			
+			wehack.messagebox([[Cannot edit instructions of an unnamed map. Please save first.]], 'postproc', false)
+			
+			return
+		end
+		
+		local path = postproc_dir..[[JNGP\jngp_pullInstructions.lua]]
+
+		local f = tryloadfile(path, true)
+
+		assert(f, 'cannot load '..tostring(path))
+
+		f:exec({mapPath = mapPath, postprocDir = postproc_dir})
+	end
+
+	MenuEntry:New(postprocMenu, "Edit instructions", editInstructions)
 
 	wehack.addmenuseparator(postprocMenu)
 
@@ -346,12 +388,22 @@ if havePostproc then
 	wehack.addmenuseparator(postprocMenu)
 
 	local function saveMap()
+		local mapPath = wehack.findmappath()
+		
+		if (mapPath == nil) then
+			wehack.messagebox([[No map opened.]], 'postproc', true)
+			
+			return
+		end
+		
 		postproc_forcingSave = true
 
 		compilemap()
 
 		postproc_forcingSave = false
 	end
+
+	postprocUseConsoleLog = TogMenuEntry:New(postprocMenu, "Use console log", nil, false)
 
 	postprocSaveMap = MenuEntry:New(postprocMenu, "Save and compile map", saveMap)
 
@@ -378,6 +430,26 @@ if havePostproc then
 	end
 
 	postprocRunMap = MenuEntry:New(postprocMenu, "Run last compiled map", runMap)
+
+	wehack.addmenuseparator(postprocMenu)
+
+	local function showAbout()
+		if (postproc_requestInfo == nil) then
+			wehack.messagebox('could not open requestInfo')
+
+			return
+		end
+	
+		local t = postproc_requestInfo()
+
+		local version = t.getVersion(postproc_dir)
+
+		local s = 'postproc grants you the ability to build compiler tool chains. It creates a copy of the passed map and applies the instructions of a custom instruction file to the replica.\n\nAuthor:\tWaterKnight\nVersion:\t%s'
+
+		wehack.messagebox(string.format(s, version), 'About postproc', false)
+	end
+
+	postprocAbout = MenuEntry:New(postprocMenu, "About postproc", showAbout)
 end
 -- # end postproc #
 
@@ -677,7 +749,11 @@ grim.log("running tool on save: "..cmdargs)
 
 		local success = false
 
-		success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt})
+		wehack.setwaitcursor(true)
+		
+		success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, useConsoleLog = postprocUseConsoleLog.checked})
+
+		wehack.setwaitcursor(false)
 
 		mapvalid = mapvalid and success
 	end

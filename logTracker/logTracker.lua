@@ -1,6 +1,13 @@
-package.path = package.path..';'..[[.\?\init.lua]]
+--package.path = [[.\?\init.lua]]..';'..package.path
+package.path = [[..\?.lua]]..';'..package.path
 
-require 'waterlua'
+require 'orient'
+
+local config = dofile('..\\postproc_getconfigs.lua')
+
+local s=io.toAbsPath(config.assignments['waterlua'], string.reduceFolder(io.local_dir()))
+
+requireDir(s)
 
 osLib.clearScreen()
 

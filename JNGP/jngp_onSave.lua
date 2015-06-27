@@ -33,6 +33,13 @@ local function toLua(val)
 		return 'nil'
 	end
 
+	if (type(val) == 'boolean') then
+		if (val == true) then
+			return 'true'
+		end
+
+		return 'false'
+	end
 	if (type(val) == 'string') then
 		return string.format('%q', val)
 	end
@@ -41,13 +48,12 @@ local function toLua(val)
 end
 
 local s = [[
-	--error(tostring(string.gsub))
-
 	local mapPath = ]]..toLua(mapPath)..[[
 	local outputPath = ]]..toLua(outputPath)..[[
 	local wc3path = ]]..toLua(paramsMap['wc3path'])..[[
 	local configPath = ]]..toLua(paramsMap['configPath'])..[[
 	local logPath = ]]..toLua(paramsMap['logPath'])..[[
+	local useConsoleLog = ]]..toLua(paramsMap['useConsoleLog'])..[[
 
 	local postprocPath = ]]..toLua(postprocPath)..[[
 
@@ -55,7 +61,7 @@ local s = [[
 
 	assert(postproc, 'cannot load '..tostring(postprocPath)..'\n'..tostring(loadErr))
 
-	return postproc(mapPath, outputPath, nil, wc3path, configPath, logPath)
+	return postproc(mapPath, outputPath, nil, wc3path, configPath, logPath, useConsoleLog)
 ]]
 
 localDir = debug.getinfo(1, 'S').source:sub(2):match('(.*'..'\\'..')')
@@ -84,10 +90,6 @@ require 'rings'
 
 local sub = rings.new(t)
 
---error(tostring(paramsMap))
-
---local res, msg, trace = sub:dostring([[postproc(mapPath, outputPath, nil, paramsMap['wc3path'], paramsMap['configPath'], paramsMap['logPath'])]])
-
 local function pack(...)
 	return arg
 end
@@ -107,8 +109,4 @@ end
 
 local noDefaultTools = results[3]
 
---error(tostring(noDefaultTools))
-
 return true, noDefaultTools
-
---return postproc(mapPath, outputPath, nil, paramsMap['wc3path'], paramsMap['configPath'], paramsMap['logPath'])

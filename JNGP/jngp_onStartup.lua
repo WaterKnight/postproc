@@ -1,10 +1,18 @@
 local params = {...}
 
-local config = params[1]
-local paramsMap = params[2]
+local paramsMap = params[1]
 
-assert(config, 'no config')
 assert(paramsMap, 'no paramsMap')
+
+local postprocDir = paramsMap['postprocDir']
+
+assert(postprocDir, 'no postprocDir')
+
+require 'waterlua'
+
+local tempDir = postprocDir..[[temp\]]
+
+--removeDir(tempDir)
 
 local outputPathNoExt = paramsMap['outputPathNoExt']
 
