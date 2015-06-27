@@ -1,0 +1,306 @@
+<h1>postproc manual 2015-06-27</h1>
+
+Using postproc you can apply processing tools to wc3 map files for finalization, e.g. to transform .j file, importing a credits text file or running an optimizer.<br>
+To not damage or alter the original map file, first a copy is generated and then all actions are targeting the replicate.<br>
+
+<h2>postproc</h2>
+
+The framework as well as the included tools in the distribution are written in Lua. Non-Lua tools can be executed, too, but do not directly benefit from the waterlua and wc3libs libraries.<br>
+<br>
+waterlua is a set of general convenience functions. wc3libs contains functionality for dealing with the wc3 formats.<br>
+<br>
+To run postproc directly you can either write<br>
+<br>
+	<pre>lua postproc.lua &lt;mapPath&gt; &lt;outputPath&gt; &lt;instructionFilePath&gt; &lt;wc3path&gt; &lt;moreConfigPath&gt; &lt;logPath&gt; &lt;useConsoleLog&gt;</pre><br>
+<br>
+- but this requires a Lua installation on your system -<br>
+<br>
+or you run<br>
+<br>
+<pre>postproc.exe &lt;mapPath&gt; &lt;outputPath&gt; &lt;instructionFilePath&gt; &lt;wc3path&gt; &lt;moreConfigPath&gt; &lt;logPath&gt; &lt;useConsoleLog&gt;</pre><br>
+<br>
+which has Lua statically linked and forwards the parameters to postproc.lua.<br>
+<br>
+The parameters are:<br>
+<br>
+<b>mapPath:</b> the path to the original map file to process<br>
+<b>outputPath:</b> target path for the compiled map<br>
+<b>instructionFilePath:</b> path to the containing the instructions to be applied to the map, if this is a .lua file, it is interpreted as Lua code, which is the preferred way, the API see further below<br>
+<b>wc3path:</b> path of your wc3 directory, this information needs to be transmitted to a lot of tools in order to extract data from the main mpqs<br>
+<b>moreConfigPath:</b> an optional additional config file<br>
+<b>logPath:</b> an optional different log output path<br>
+<b>useConsoleLog:</b> optionally postproc opens a shell to display the log text in<br>
+<br>
+<h2>JNGP plugIn</h2>
+
+The easier way to use postproc is via JNGP.<br>
+
+<h3>Installation</h3>
+
+Copy the lua51.dll from the postproc\JNGP directory into your JNGP directory, possibly replacing the existing one.<br>
+Depending on which JNGP version you possess, choose a wehack.lua from postproc\JNGP\&lt;version&gt; and copy it to your JNGP directory, replacing the existing one.<br>
+Open the jasshelper.conf in your JNGP directory and add:<br>
+<br>
+	[postproc]<br>
+	postprocDir="&lt;path_to_postproc&gt;"<br>
+<br>
+Instead of &lt;path_to_postproc&gt; type in the path to your postproc directory.<br>
+<br>
+Afterwards we are set and you can run JNGP.<br>
+An additional menu "postproc" should be shown in the menu bar.<br>
+
+<h3>Functions</h3>
+
+<b>Enable:</b> Master switch to turn postproc on/off intervening with JNGP's normal mechanisms<br>
+<br>
+<b>Block other compiling tools:</b> When checked, jasshelper or whatever JNGP is providing as standard additional compiling tools are deactivated.<br>
+<b>Use postproc when map is being saved:</b> When checked, postproc hooks on the standard JNGP save procedure to be run in succession.<br>
+<b>Use last compiled map when testing:</b> When checked, postproc hooks on the standard JNGP test map procedure in order to redirect the played file to the last postproc output.<br>
+<br>
+<b>Edit instructions:</b> postproc instructions are injected into the original map file during compilation, pressing this button, if the map possesses such data and an instruction repository of that map does not exist yet on your file system, it creates the repository and pulls the data from the map therein, else it creates the repository and generates default files, in any case the repository is opened in explorer automatically<br>
+<br>
+<b>Show current paths:</b> Displays the paths set in JNGP for postproc it got from jasshelper.conf or what it was defaulted to.<br>
+<b>Show config:</b> Opens the postproc\config.conf file.<br>
+<b>Show tools:</b> Opens the postproc\configTools.slk file.<br>
+<b>Show jasshelper config:</b> Opens the JNGP\jasshelper.conf file.<br>
+<b>Show log:</b> Opens the log output path according to the jasshelper.conf.<br>
+<br>
+<b>Use console log:</b> When checked, postproc spawns a command shell and streams log outputs to it, so you can better see what's going on meanwhile.<br>
+<b>Save and compile map:</b> Triggers the WE's save function but forces postproc even if 'Use postproc when map is being saved' is unchecked.<br>
+<b>Start LogTracker when testing:</b> The LogTracker is an additional module you can use to open up a command shell while Wc3 is running. If the map writes data to the hard disk via the Preload bug in a certain standardized fashion, the LogTracker can read it back and thereby show you live debugging output while the map is running.<br>
+<b>Run last compiled map:</b> Starts Wc3 and loads the last compilation output of postproc.<br>
+<br>
+About postproc:</b> Displays an about box with a short description, the version number and the author name of postproc.<br>
+
+<h2>API</h2>
+
+There are several functions and variables that are passed to the sandbox postproc spawns to run your instruction files in.<br>
+
+<h3>mapPath</h3>
+
+mapPath: string<br>
+<br>
+This variable holds the path of the compiling map (the replica).<br>
+
+<h3>wc3path</h3>
+
+wc3path: string<br>
+<br>
+This variable holds the wc3path postproc was started with.<br>
+
+<h3>runTool</h3>
+
+runTool(name, args)<br>
+<br>
+Starts the tool with the name 'name' according to the postproc\configTools.slk and the arguments 'args' as a table.<br>
+<br>
+Ex: runTool('embedBuildNumber', {mapPath, 'Hello Build %buildNum%'})<br>
+<br>
+The function returns true if the tool returned without error (errorlevel 0) or false and an error message (error message only for Lua tools) if there was an issue.<br>
+
+<h3>createTmpFile</h3>
+
+createTmpFile(text)<br>
+<br>
+Opens a single new file for temporary usage and writes &lt;text&gt; into it. Only one file at a time at the moment. This can be used to feed tools which require an input file for parametrization.<br>
+<br>
+The function returns the path to the created file.<br>
+
+<h3>unwrap</h3>
+
+unwrap(path = nil)<br>
+<br>
+Exports all files of the map mpq to the directory &lt;path&gt;. If &lt;path&gt; is nil, it will be exported to the default directory instead.<br>
+<br>
+Returns the path the files were exported to.<br>
+
+<h3>wrap</h3>
+
+wrap(path = nil)<br>
+<br>
+Imports all files in the directory &lt;path&gt; to the map mpq. If &lt;path&gt; is nil, the source directory will be the default directory instead.<br>
+<br>
+Returns the path the files were imported from.<br>
+
+<h3>Included tools</h3>
+
+<h2>embedBuildNumber</h2>
+
+<b>Description:</b> Changes a map's name and embeds the save number from the w3i in a pattern.<br>
+<br>
+<b><b>Parameters:</b></b><br>
+1. map<br>
+2. newName<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>runTool('embedBuildNumber', {mapPath, 'Hello Build %buildNum%'})</pre><br>
+
+<h2>extractFile</h2>
+
+<b>Description:</b> Extracts a single file from a map archive.<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+2. filePath //path within the map archive to be extracted<br>
+3. targetPath //target path on the file system<br>
+<br>
+<b>Sample:</b><br>
+<pre>jScript = 'exported.j'
+
+runTool('extractFile', {mapPath, 'war3map.j', jScript})</pre><br>
+<br>
+Extracts war3map.j from &lt;mapPath&gt; and puts it on the path &lt;jScript&gt;.<br>
+
+<h2>importFile</h2>
+
+<b>Description:</b> Imports a file from the file system into a map.<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+2. filePath //path of the file on the file system to be imported<br>
+3. targetPath //target path within the map archive<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>jScript = 'exported.j'
+
+runTool('importFile', {mapPath, jScript, 'war3map.j'})</pre><br>
+<br>
+Imports the file from the path &lt;jScript&gt; and puts it into &lt;mapPath&gt; as war3map.j.<br>
+
+<h2>jassAid</h2>
+
+<b>Description:</b> Provides low-level jass debug functionality, see http://www.hiveworkshop.com/forums/warcraft-editing-tools-277/jassaid-264937/<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+2. wc3path //path to your wc3 main directory<br>
+3. commonJPath //common.j<br>
+4. blizzardJPath //blizzard.j<br>
+5. logId //identifier for externalized debug logs<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>commonJ = 'jasshelper\\common.j'
+blizzardJ = 'jasshelper\\blizzard.j'
+
+runTool('jassAid', {mapPath, wc3path, commonJ, blizzardJ, 'example'})</pre><br>
+
+<h3>jassAid_insertNatives</h3>
+
+<b>Description:</b> jassAid injects some functions for public use but in order to pass precompilers like jasshelper or wurstscript, which you should do before running jassAid, those precompilers need to recognize the new functions beforehand, jassAid_insertNatives edits a common.j to declare these functions as natives, so you can pass the new common.j when calling a precompiler, the new functions are DebugMsg(string), DebugEx(string), InfoEx(string)<br>
+<br>
+<b>Parameters:</b><br>
+1. scriptPath<br>
+2. outputPath<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>commonJ = 'jasshelper\\common.j'
+blizzardJ = 'jasshelper\\blizzard.j'
+
+commonJNew = 'jasshelper\\commonNew.j'
+
+runTool('jassAid_insertNatives', {commonJ, commonJNew})
+runTool('jasshelper', {'--debug', commonJNew, blizzardJ, mapPath})
+runTool('jassAid', {mapPath, wc3path, commonJNew, blizzardJ, 'example'})</pre><br>
+
+<h2>objForJass</h2>
+
+<b>Description:</b> Transforms all object data from the slks, profile and objMod files to jass lines and provides functions to access it.<br>
+<br>
+Added (public) jass functions:<br>
+objData_init_autoRun()<br>
+<br>
+objData_readBool(integer objId, integer field)<br>
+objData_readInt(integer objId, integer field)<br>
+objData_readReal(integer objId, integer field)<br>
+objData_readString(integer objId, integer field)<br>
+<br>
+objData_readLvBool(integer objId, integer field, integer lv)<br>
+objData_readLvInt(integer objId, integer field, integer lv)<br>
+objData_readLvReal(integer objId, integer field, integer lv)<br>
+objData_readLvString(integer objId, integer field, integer lv)<br>
+<br>
+If used in conjunction with jassAid, objData_init_autoRun is invoked automatically at map init. Else this needs to be called manually for initialization.<br>
+<br>
+Warning: The tool heavily boosts the map size, unless you overwrite the standard object data, it will be included too.<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+2. wc3path //path to wc3's main directory<br>
+3. optional path to Lua script file for advanced control<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>local s = [[
+for objId, objData in pairs(objs) do
+	objData.vals['ulev'] = nil
+end
+objs['klmm'] = nil
+
+useStd()
+]]
+
+local tmpFile = createTmpFile(s)
+
+runTool('objForJass', {mapPath, wc3path, tmpFile})</pre><br>
+
+<h3>objForJass_insertNatives</h3>
+
+<b>Description:</b> objForJass introduces new public functions. In order to use them and pass precompilers, objForJass_insertNatives declares those functions as natives by editing the common.j. This modified can then be used when calling precompilers.<br>
+<br>
+<b>Parameters:</b><br>
+<br>
+1. scriptPath<br>
+2. outputPath<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>commonJ = 'jasshelper\\common.j'
+blizzardJ = 'jasshelper\\blizzard.j'
+
+commonJNew = 'jasshelper\\commonNew.j'
+
+runTool('objForJass_insertNatives', {commonJ, commonJNew})
+
+runTool('jasshelper', {'--debug', commonJNew, blizzardJ, mapPath})
+
+runTool('objForJass', {mapPath, wc3path})</pre><br>
+
+<h2>objModToSlk</h2>
+
+<b>Description:</b> Transforms a map's object data to slk/profile as far as possible. Essentially analogue to what Widgetizer does. The standard object data is remained unless the map already has custom slk/profile files.<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+2. wc3path //path to wc3's main directory<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>runTool('objModToSlk', {mapPath, wc3path})</pre><br>
+
+<h2>pathFiller</h2>
+
+<b>Description:</b> From given starting points, pathFiller looks into the .wpm to see which areas are reachable (not blocked off by unwalkable pathing). The remaining area is striked out (made unwalkable).<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>runTool('pathFiller', {mapPath})</pre><br>
+
+<h2>vjassImport</h2>
+
+<b>Description:</b> Resolves vjass //! import directives analogue to jasshelper.<br>
+<br>
+<b>Parameters:</b><br>
+<br>
+1. map<br>
+2. lookupPaths //directories the tool uses as additional search origins, separated by ;<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>runTool('vjassImport', {mapPath, [[D:\myJassImports;D:\myJassImports2;subDirOfWorkingDir]]})</pre>

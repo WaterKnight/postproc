@@ -513,7 +513,9 @@ local function createTmpFile(s)
 end
 
 local function unwrap(path)
-	path = path or io.local_dir()..[[temp\unwrapped]]
+	path = path or io.local_dir()..[[temp\unwrapped\]]
+
+	flushDir(path)
 
 	mpqExtractAll(mapPath, path)
 
@@ -521,7 +523,7 @@ local function unwrap(path)
 end
 
 local function wrap(path)
-	path = path or io.local_dir()..[[temp\unwrapped]]
+	path = path or io.local_dir()..[[temp\unwrapped\]]
 
 	mpqImportAll(mapPath, path)
 

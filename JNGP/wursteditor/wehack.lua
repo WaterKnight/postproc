@@ -300,7 +300,11 @@ local function tryloadfile(path, doShell)
 
 		local f = loadfile(shellPath)
 
-		assert(f, 'cannot open '..tostring(shellPath))
+		--assert(f, 'cannot open '..tostring(shellPath))
+
+		if (f == nil) then
+			return nil
+		end
 
 		f()
 
@@ -343,6 +347,14 @@ if (config_postprocSection ~= nil) then
 		if (#t2 > 0) then
 			wehack.messagebox('warning: found postproc config section but could not load files:\n'..table.concat(t2, '\n'))
 		end
+	end
+
+	if (postproc_logPath == nil) then
+		postproc_logPath = postproc_dir..'log.txt'
+	end
+
+	if (postproc_outputPathNoExt == nil) then
+		postproc_outputPathNoExt = postproc_dir..'output'
 	end
 end
 
@@ -469,6 +481,12 @@ if havePostproc then
 
 		local mapPath = t.getLastOutputPath(postproc_dir)
 
+		if (mapPath == nil) then
+			wehack.messagebox([[No last compiled map.]], 'postproc', true)
+
+			return
+		end
+
 		local cmdline = "\""..path.."\\War3.exe\"".." -loadfile \""..mapPath.."\""
 
 		postproc_forcingTest = true
@@ -481,6 +499,14 @@ if havePostproc then
 	postprocRunMap = MenuEntry:New(postprocMenu, "Run last compiled map", runMap)
 
 	wehack.addmenuseparator(postprocMenu)
+
+	local function showManual()
+		local path = postproc_dir..'manual.html'
+
+		os.execute(string.format('%q', path))
+	end
+
+	postprocManual = MenuEntry:New(postprocMenu, "Manual", showManual)
 
 	local function showAbout()
 		if (postproc_requestInfo == nil) then
