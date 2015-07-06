@@ -281,7 +281,7 @@ end
 local throwError = false
 local throwErrorMsg = nil
 
-local function runTool(name, args)
+local function runToolEx(name, args)
 	assert(name, 'no tool')
 	
 	local tool = exttoolsByName[name]
@@ -446,14 +446,14 @@ xpcall(xpfunc, errorHandler)]]
 	return (resLevel == 0)
 end
 
-local function runToolEx(name, args)
+local function runTool(name, args)
 	assert(name, 'no tool')
 	
 	local tool = exttoolsByName[name]
 	
 	assert(tool, 'unknown tool ('..tostring(name)..')')
 
-	local success, errorMsg = runTool(name, args)
+	local success, errorMsg = runToolEx(name, args)
 
 	if not success then
 		log('error: an error occurred')
@@ -677,11 +677,11 @@ end
 
 xpcall(xpfunc, errorHandler)]]
 
-			--local f = io.open(io.local_dir()..'sandboxer.lua', 'w+')
+			local f = io.open(io.local_dir()..'sandboxer.lua', 'w+')
 
-			--f:write(s)
+			f:write(s)
 
-			--f:close()
+			f:close()
 
 			local hasError = false
 			local errorMsg

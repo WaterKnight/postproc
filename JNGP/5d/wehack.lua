@@ -815,25 +815,7 @@ grim.log("running tool on save: "..cmdargs)
 
 	mapvalid = true
 
-	local postproc_override = false
-
-	if (havePostproc and (postproc_forcingSave or (postprocEnable.checked and postprocSaveMapAuto.checked))) then
-		local postproc_save = tryloadfile(postproc_onSavePath)
-
-		assert(postproc_save, 'could not load '..tostring(postproc_onSavePath))
-
-		local success = false
-
-		wehack.setwaitcursor(true)
-		
-		success, postproc_override = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, useConsoleLog = postprocUseConsoleLog.checked})
-
-		wehack.setwaitcursor(false)
-		
-		mapvalid = mapvalid and success
-	end
-
-	if (not havePostproc or (not postprocEnable.checked or (not postprocBlockTools.checked and not postproc_override) and not postproc_forcingSave)) then
+	if (not havePostproc or (not postprocEnable.checked or not postprocBlockTools.checked and not postproc_forcingSave)) then
 		if havejh and jh_enable.checked then
 
 			cmdline = "jasshelper\\jasshelper.exe"
@@ -858,6 +840,22 @@ grim.log("running tool on save: "..cmdargs)
 
 			mapvalid = mapvalid and (toolresult == 0)
 		end
+	end
+
+	if (havePostproc and (postproc_forcingSave or (postprocEnable.checked and postprocSaveMapAuto.checked))) then
+		local postproc_save = tryloadfile(postproc_onSavePath)
+
+		assert(postproc_save, 'could not load '..tostring(postproc_onSavePath))
+
+		local success = false
+
+		wehack.setwaitcursor(true)
+		
+		success = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, useConsoleLog = postprocUseConsoleLog.checked})
+
+		wehack.setwaitcursor(false)
+		
+		mapvalid = mapvalid and success
 	end
 end
 
