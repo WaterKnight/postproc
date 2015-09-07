@@ -40,8 +40,8 @@ require 'portLib'
 if not io.pathExists(mapRepo) then
 	createDir(mapRepo)
 
-	mpqExtract(mapPath, [[postproc\instructions\_index.txt]], indexTargetPath)
-	mpqExtract(mapPath, [[postproc\instructions\_current.txt]], currentTargetPath)
+	portLib.mpqExtract(mapPath, [[postproc\instructions\_index.txt]], indexTargetPath)
+	portLib.mpqExtract(mapPath, [[postproc\instructions\_current.txt]], currentTargetPath)
 
 	local f = io.open(indexTargetPath, 'r')
 
@@ -51,8 +51,8 @@ if not io.pathExists(mapRepo) then
 		for _, v in pairs(s:split('\n')) do
 			if v:match('.+') then
 				--wehack.extractfile([[postproc\instructions\]]..v..'.lua', mapRepo..v..'.lua')
-				--mpqExtract(mapPath, [[postproc\instructions\]]..v..'.lua', mapRepo..v..'.lua')
-				mpqExtract(mapPath, [[postproc\instructions\]]..v, mapRepo..v)
+				--portLib.mpqExtract(mapPath, [[postproc\instructions\]]..v..'.lua', mapRepo..v..'.lua')
+				portLib.mpqExtract(mapPath, [[postproc\instructions\]]..v, mapRepo..v)
 			end
 		end
 

@@ -1,5 +1,11 @@
 local params = {...}
 
+for k, v in pairs(params) do
+	if (v == '') then
+		params[k] = nil
+	end
+end
+
 local mapPath = params[1]
 local outputPath = params[2]
 local instructionFilePath = params[3]
@@ -7,6 +13,10 @@ local wc3path = params[4]
 local moreConfigPath = params[5]
 local logPath = params[6]
 local useConsoleLog = params[7]
+
+if (useConsoleLog == 'true') then
+	useConsoleLog = true
+end
 
 assert(mapPath, 'no mapPath')
 assert(outputPath, 'no outputPath')
@@ -94,7 +104,7 @@ local function updateInstructions()
 
 	require 'portLib'
 
-	local port = createMpqPort()
+	local port = portLib.createMpqPort()
 
 	port:addImport(indexPath, [[postproc\instructions\_index.txt]])
 	port:addImport(currentPath, [[postproc\instructions\_current.txt]])
@@ -144,6 +154,8 @@ end
 
 local postprocLog = io.open(logPath, 'w+')
 
+assert(postprocLog, 'could not open '..logPath)
+
 local logPipe
 
 if (useConsoleLog == true) then
@@ -164,13 +176,22 @@ if (useConsoleLog == true) then
 	logPipe = io.popen(string.format([[call %q > con]], logPipePath), 'w')
 end
 
-local function log(s)
-	--print(s)
+local function log(...)
+	print(...)
 	if (logPipe ~= nil) then
-		logPipe:write(s, '\n')
+		logPipe:write(..., '\n')
 		logPipe:flush()
 	end
-	postprocLog:write(s, '\n')
+	postprocLog:write(..., '\n')
+end
+
+local function logError(...)
+	io.stderr:write(..., '\n')
+	if (logPipe ~= nil) then
+		logPipe:write(..., '\n')
+		logPipe:flush()
+	end
+	postprocLog:write(..., '\n')
 end
 
 log(os.date('postproc log - %x %X - '..mapPath, os.time()))
@@ -241,7 +262,9 @@ if (externalToolsSection ~= nil) then
 	end
 end
 
-local toolsSlk = createSlk()
+require 'slkLib'
+
+local toolsSlk = slkLib.create()
 
 toolsSlk:readFromFile(io.local_dir()..'configTools.slk')
 
@@ -273,7 +296,7 @@ if (instructionFilePath == '[internal]') then
 
 	removeFile(instructionFilePath)
 
-	mpqExtract(mapPath, 'war3map.wct', instructionFilePath)
+	portLib.mpqExtract(mapPath, 'war3map.wct', instructionFilePath)
 
 	log('reading from internal .wct')
 end
@@ -285,8 +308,15 @@ local function runToolEx(name, args)
 	assert(name, 'no tool')
 	
 	local tool = exttoolsByName[name]
-	
-	assert(tool, 'unknown tool ('..tostring(name)..')')
+
+	if (tool == nil) then
+		tool = {}
+
+		tool.name = getFileName(name, true)
+		tool.flags = {}
+		tool.path = name
+	end
+	--assert(tool, 'unknown tool ('..tostring(name)..')')
 
 	local tryTable = {}
 
@@ -319,7 +349,7 @@ local function runToolEx(name, args)
 	do
 		local t = {}
 
-		t[#t + 1] = tostring(tool.path):gsub("\\\\", "\\")
+		t[#t + 1] = tostring(tool.path):gsub("\\\\", "\\"):quote()
 
 		for j = 1, #args, 1 do
 			local arg = args[j]
@@ -378,6 +408,22 @@ local errorHandler = function(msg)
 	remotedostring(cmd)
 end
 
+local function pack(...)
+	return {...}
+end
+
+print = function(...)
+	local t = pack(...)
+
+	for i = 1, select('#', ...), 1 do
+		t[i] = string.format('%q', tostring(t[i]))
+	end
+
+	local cmd = string.format('toolPrint(%s)', table.concat(t, ','))
+
+	remotedostring(cmd)
+end
+
 xpcall(xpfunc, errorHandler)]]
 
 			--local f = io.open(io.local_dir()..'sandboxer.lua', 'w+')
@@ -401,11 +447,25 @@ xpcall(xpfunc, errorHandler)]]
 				regError(msg, trace)
 			end
 
-			local toolEnv = {toolError = toolError}
+			local function toolPrint(...)
+				log('\t', ...)
+			end
+
+			local toolEnv = {toolError = toolError, toolPrint = toolPrint}
 
 			local sub = rings.new(toolEnv)
 
+			log("invoking tool "..tool.name)
+
+			local curDir = io.curDir()
+
+			io.chdir(getFolder(path))
+
 			local ringRes, ringErrorMsg = sub:dostring(s)
+
+			io.chdir(curDir)
+
+			log("finished tool "..tool.name)
 
 			if hasError then
 				return false, errorMsg
@@ -450,8 +510,15 @@ local function runTool(name, args)
 	assert(name, 'no tool')
 	
 	local tool = exttoolsByName[name]
-	
-	assert(tool, 'unknown tool ('..tostring(name)..')')
+
+	if (tool == nil) then
+		tool = {}
+
+		tool.name = getFileName(name, true)
+		tool.flags = {}
+		tool.path = name
+	end
+	--assert(tool, 'unknown tool ('..tostring(name)..')')
 
 	local success, errorMsg = runToolEx(name, args)
 
@@ -469,27 +536,43 @@ local function runTool(name, args)
 		if ((tool == nil) or (resLevel == nil) or not tableContains(tool.flags, 'noErrorPrompt')) then
 			throwError = true
 
-			if (throwErrorMsg == nil) then
-				throwErrorMsg = ''
+			local t = {}
+
+			if (throwErrorMsg ~= nil) then
+				t[#t + 1] = throwErrorMsg
 			end
-			throwErrorMsg = throwErrorMsg..'\n'..errorMsg
-			
+
+			if (errorMsg ~= nil) then
+				t[#t + 1] = errorMsg
+			end
+
+			if (#t > 0) then
+				throwErrorMsg = table.concat(t, '\n')
+			end
+
 			local cmdArgs = {}
 			
 			for i = 1, #args, 1 do
 				cmdArgs[i] = tostring(args[i])
 			end
-			
+
 			local cmd = string.format('%s(%s)', name, table.concat(cmdArgs, ','))
-			
-			if (throwErrorCall == nil) then
-				throwErrorCall = ''
+
+			if (throwErrorCall ~= nil) then
+				t[#t + 1] = throwErrorCall
 			end
-			throwErrorCall = throwErrorCall..'\n'..cmd
+
+			if (cmd ~= nil) then
+				t[#t + 1] = cmd
+			end
+
+			if (#t > 0) then
+				throwErrorCall = table.concat(t, '\n')
+			end
 		end
 	end
 
-	return throwError
+	return success
 end
 
 local function createTmpFile(s)
@@ -517,7 +600,7 @@ local function unwrap(path)
 
 	flushDir(path)
 
-	mpqExtractAll(mapPath, path)
+	portLib.mpqExtractAll(mapPath, path)
 
 	return path
 end
@@ -525,7 +608,7 @@ end
 local function wrap(path)
 	path = path or io.local_dir()..[[temp\unwrapped\]]
 
-	mpqImportAll(mapPath, path)
+	portLib.mpqImportAll(mapPath, path)
 
 	return path
 end
@@ -663,8 +746,8 @@ createTmpFile = function(s)
 	return runFunc('createTmpFileAdapter', s)
 end
 
-log = function(s)
-	return runFunc('logAdapter', s)
+log = function(...)
+	return runFunc('logAdapter', ...)
 end
 
 unwrap = function(path)
@@ -991,7 +1074,7 @@ if throwError then
 	if (throwErrorCall ~= nil) then
 		t[#t + 1] = ''
 
-		t[#t + 1] = 'call:\n'..throwErrorCall
+		t[#t + 1] = 'in call: '..throwErrorCall
 	end
 
 	if (throwErrorMsg ~= nil) then
@@ -999,7 +1082,7 @@ if throwError then
 
 		t[#t + 1] = 'errorMsg:\n'..throwErrorMsg
 
-		log(throwErrorMsg)
+		logError(throwErrorMsg)
 	end
 
 	postprocLog:close()
@@ -1009,6 +1092,8 @@ if throwError then
 	end
 
 	error(table.concat(t, '\n'), 0)
+else
+	log('postproc has finished without error')
 end
 
 postprocLog:close()
