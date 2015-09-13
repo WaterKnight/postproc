@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;Y18;X4;D0 0 17 3
+B;Y20;X4;D0 0 19 3
 C;Y1;X1;K"name"
 C;X2;K"path"
 C;X3;K"working directory"
@@ -70,6 +70,14 @@ C;X3;K""
 C;X4;K""
 C;Y18;X1;K"mapMerger"
 C;X2;K"mapMerger\mapMerger.lua"
+C;X3;K""
+C;X4;K""
+C;Y19;X1;K"pathPainter"
+C;X2;K"pathPainter\pathPainter.lua"
+C;X3;K""
+C;X4;K""
+C;Y20;X1;K"tagReplacer"
+C;X2;K"tagReplacer\tagReplacer.lua"
 C;X3;K""
 C;X4;K""
 E

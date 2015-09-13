@@ -809,13 +809,13 @@ else
 	local instructionLines = {}
 
 	if (getFileExtension(instructionFilePath) == 'wct') then
-		local root = wc3binaryFile.create()
+		require 'wc3wct'
 
-		root:readFromFile(instructionFilePath, wctMaskFunc)
+		local wct = wc3wct.create()
 
-		local headTrig = root:getSub('headTrig')
+		wct:readFromFile(instructionFilePath)
 
-		local text = headTrig:getVal('text', true)
+		local text = wct.headerText
 
 		if (text ~= nil) then
 			for i, line in pairs(text:split('\n')) do

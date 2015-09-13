@@ -1,6 +1,6 @@
---generated instruction file caller (D:\crig\MaDOS 1.01.w3x_postproc\release.lua)
+--generated instruction file caller (D:\crig\abc.w3x_postproc\release.lua)
 package.path = "D:\\Warcraft III\\Mapping\\postproc\\?.lua;;.\\?.lua;D:\\Warcraft III\\lua\\?.lua;D:\\Warcraft III\\lua\\?\\init.lua;D:\\Warcraft III\\?.lua;D:\\Warcraft III\\?\\init.lua;C:\\Program Files (x86)\\Lua\\5.1\\lua\\?.luac;D:\\Warcraft III\\Mapping\\postproc\\?.lua;D:\\Warcraft III\\Mapping\\?\\init.lua;D:\\Warcraft III\\Mapping\\waterlua\\?.lua;D:\\Warcraft III\\Mapping\\?\\init.lua;D:\\Warcraft III\\Mapping\\wc3libs\\?.lua;D:\\Warcraft III\\Mapping\\wc3libs\\?.lua;D:\\Warcraft III\\Mapping\\wc3libs\\?\\init.lua;D:\\Warcraft III\\Mapping\\wc3libs\\?\\?.lua"package.cpath = "D:\\Warcraft III\\Mapping\\postproc\\?.dll;.\\?.dll;.\\?51.dll;D:\\Warcraft III\\?.dll;D:\\Warcraft III\\?51.dll;D:\\Warcraft III\\clibs\\?.dll;D:\\Warcraft III\\clibs\\?51.dll;D:\\Warcraft III\\loadall.dll;D:\\Warcraft III\\clibs\\loadall.dll;D:\\Warcraft III\\Mapping\\postproc\\?.dll;D:\\Warcraft III\\Mapping\\?\\init.dll;D:\\Warcraft III\\Mapping\\waterlua\\?.dll;D:\\Warcraft III\\Mapping\\?\\init.dll;D:\\Warcraft III\\Mapping\\wc3libs\\?.dll;D:\\Warcraft III\\Mapping\\wc3libs\\?.dll;D:\\Warcraft III\\Mapping\\wc3libs\\?\\init.dll;D:\\Warcraft III\\Mapping\\wc3libs\\?\\?.dll"
-local func = loadfile("D:\\crig\\MaDOS 1.01.w3x_postproc\\release.lua")
+local func = loadfile("D:\\crig\\abc.w3x_postproc\\release.lua")
 
 local xpfunc = function()
 	local args = {}
