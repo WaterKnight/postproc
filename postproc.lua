@@ -57,7 +57,7 @@ requireDir(io.toAbsPath(wc3libsPath, io.local_dir()))
 local function updateInstructions()
 	local postprocDir = io.local_dir()
 
-	--local mapRepo = postprocDir..[[temp\instructions\]]..getFileName(mapPath, true)..[[\]]
+	--local mapRepo = postprocDir..[[temp\instructions\]]..io.getFileName(mapPath, true)..[[\]]
 	local mapRepo = mapPath..[[_postproc\]]
 
 	if not io.pathExists(mapRepo) then
@@ -67,7 +67,7 @@ local function updateInstructions()
 	local indexPath = mapRepo..[[_index.txt]]
 	local currentPath = mapRepo..[[_current.txt]]
 
-	local t = getFiles(mapRepo, '*.lua')
+	local t = io.getFiles(mapRepo, '*.lua')
 
 	local indexFile = io.open(indexPath, 'w+')
 
@@ -75,7 +75,7 @@ local function updateInstructions()
 
 	for k, v in pairs(t) do
 		--v = v:match('([^\\]*).lua')
-		v = getFileName(v)
+		v = io.getFileName(v)
 
 		if (v ~= nil) then
 			indexFile:write(v, '\n')
@@ -120,7 +120,7 @@ end
 
 local lastInstructionFilePath = updateInstructions()
 
-local toolEnvTemplate = copyTable(_G)
+local toolEnvTemplate = table.copy(_G)
 
 local toolsLookupPaths = config.assignments['toolsLookup']
 
@@ -147,9 +147,9 @@ local defLogPath = io.local_dir()..'log.txt'
 if (logPath == nil) then
 	logPath = defLogPath
 
-	removeFile(defLogPath)
+	io.removeFile(defLogPath)
 else
-	removeFile(logPath)
+	io.removeFile(logPath)
 end
 
 local postprocLog = io.open(logPath, 'w+')
@@ -194,9 +194,8 @@ local function logError(...)
 	postprocLog:write(..., '\n')
 end
 
-log(os.date('postproc log - %x %X - '..mapPath, os.time()))
-
-local noDefaultTools = false
+--log(os.date('postproc log - %x %X - map: %s build: %s', os.time()))
+log(string.format('postproc log - %s - map: %s', os.date('%x %X', os.time()), mapPath))
 
 mapPath = io.toAbsPath(mapPath)
 
@@ -204,7 +203,7 @@ if not io.isAbsPath(outputPath) then
 	outputPath = io.curDir()..outputPath
 end
 
-copyFile(mapPath, outputPath, true)
+io.copyFile(mapPath, outputPath, true)
 
 local lastOutputPathFilePath = io.local_dir()..'lastOutputPath.txt'
 
@@ -294,12 +293,14 @@ end
 if (instructionFilePath == '[internal]') then
 	instructionFilePath = io.local_dir()..'war3map.wct'
 
-	removeFile(instructionFilePath)
+	io.removeFile(instructionFilePath)
 
 	portLib.mpqExtract(mapPath, 'war3map.wct', instructionFilePath)
 
 	log('reading from internal .wct')
 end
+
+log(string.format('build file: %s\n\n----------------------------------------------\n', instructionFilePath))
 
 local throwError = false
 local throwErrorMsg = nil
@@ -312,7 +313,7 @@ local function runToolEx(name, args)
 	if (tool == nil) then
 		tool = {}
 
-		tool.name = getFileName(name, true)
+		tool.name = io.getFileName(name, true)
 		tool.flags = {}
 		tool.path = name
 	end
@@ -372,13 +373,13 @@ local function runToolEx(name, args)
 		cmd = table.concat(t, ' ')
 	end
 
-	if (getFileExtension(tool.path) == 'lua') then
+	if (io.getFileExtension(tool.path) == 'lua') then
 		log('luacall: ', cmd)
 
 		local func = loadfile(tool.path)
 		
 		if (func == nil) then
-			local found, notFoundMsg = syntaxCheck(tool.path)
+			local found, notFoundMsg = io.syntaxCheck(tool.path)
 
 			if not found then
 				return false, notFoundMsg
@@ -395,7 +396,7 @@ package.cpath = ]]..string.format('%q', package.cpath)..[[
 local func = loadfile(]]..string.format('%q', tool.path)..[[)
 
 local xpfunc = function()
-	local args = ]]..tableToLua(args)..[[
+	local args = ]]..table.toLua(args)..[[
 
 	return func(unpack(args))
 end
@@ -455,7 +456,7 @@ xpcall(xpfunc, errorHandler)]]
 
 			local sub = rings.new(toolEnv)
 
-			log("invoking tool "..tool.name)
+			log(string.format('invoking tool %s (%s)', tool.name, path))
 
 			local curDir = io.curDir()
 
@@ -465,7 +466,7 @@ xpcall(xpfunc, errorHandler)]]
 
 			io.chdir(curDir)
 
-			log("finished tool "..tool.name)
+			log(string.format('finished tool %s', tool.name, path))
 
 			if hasError then
 				return false, errorMsg
@@ -514,7 +515,7 @@ local function runTool(name, args)
 	if (tool == nil) then
 		tool = {}
 
-		tool.name = getFileName(name, true)
+		tool.name = io.getFileName(name, true)
 		tool.flags = {}
 		tool.path = name
 	end
@@ -613,8 +614,8 @@ local function wrap(path)
 	return path
 end
 
-if (getFileExtension(instructionFilePath) == 'lua') then
-	local success, errorMsg = syntaxCheck(instructionFilePath)
+if (io.getFileExtension(instructionFilePath) == 'lua') then
+	local success, errorMsg = io.syntaxCheck(instructionFilePath)
 
 	if not success then
 		throwError = true
@@ -674,6 +675,8 @@ if (getFileExtension(instructionFilePath) == 'lua') then
 			local s = [[--generated instruction file caller (]]..instructionFilePath..[[)
 package.path = ]]..string.format('%q', package.path)..[[
 package.cpath = ]]..string.format('%q', package.cpath)..[[
+
+require 'portLib'
 
 local func = loadfile(]]..string.format('%q', instructionFilePath)..[[)
 
@@ -808,7 +811,7 @@ xpcall(xpfunc, errorHandler)]]
 else
 	local instructionLines = {}
 
-	if (getFileExtension(instructionFilePath) == 'wct') then
+	if (io.getFileExtension(instructionFilePath) == 'wct') then
 		require 'wc3wct'
 
 		local wct = wc3wct.create()
@@ -996,12 +999,6 @@ else
 			end
 		end
 
-		if line:find('noDefaultTools') then
-			log('found noDefaultTools ', ' at line ', lineNum)
-
-			noDefaultTools = true
-		end
-
 		local name, val = line:match('%$([%w%d%p_]+)%$ = ([%w%d%p_]+)')
 
 		if (name ~= nil) then
@@ -1101,4 +1098,4 @@ if (logPipe ~= nil) then
 	logPipe:close()
 end
 
-return true, noDefaultTools
+return true

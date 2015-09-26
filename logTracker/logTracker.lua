@@ -151,7 +151,7 @@ os.execute(string.format('title logTracker %s session %s', targetPath, sessionId
 local lines = {}
 local linesC = 0
 
-fileMaxLines = 499
+fileMaxLines = 500 - 1
 
 local fileIndex = 0
 

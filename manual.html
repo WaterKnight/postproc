@@ -3,7 +3,20 @@
 Using postproc you can apply processing tools to wc3 map files for finalization, e.g. to transform .j file, importing a credits text file or running an optimizer.<br>
 To not damage or alter the original map file, first a copy is generated and then all actions are targeting the replicate.<br>
 
-<h2>postproc</h2>
+<h3><a name="toc">Table of contents</toc></h3>
+<ul>
+	<li><a href="#externally">Running postproc externally</a></li>
+	<li><a href="#JNGP">JNGP plugIn</a></li>
+	<li><a href="#API">API</a></li>
+	<li><a href="#tools">Included tools</a></li>
+</ul>
+
+<hr>
+
+<a name="externally"></a>
+<div align="right"><a href="#">back to top</a></div>
+<div style="background-color:#EEEEEE">
+<h2>Running postproc externally</h2>
 
 The framework as well as the included tools in the distribution are written in Lua. Non-Lua tools can be executed, too, but do not directly benefit from the waterlua and wc3libs libraries.<br>
 <br>
@@ -31,6 +44,13 @@ The parameters are:<br>
 <b>logPath:</b> an optional different log output path<br>
 <b>useConsoleLog:</b> optionally postproc opens a shell to display the log text in<br>
 <br>
+</div>
+
+<hr>
+
+<a name="JNGP">
+</a><div align="right"><a href="#">back to top</a></div>
+<div style="background-color:#DDDDDD">
 <h2>JNGP plugIn</h2>
 
 The easier way to use postproc is via JNGP.<br>
@@ -71,7 +91,13 @@ An additional menu "postproc" should be shown in the menu bar.<br>
 <b>Run last compiled map:</b> Starts Wc3 and loads the last compilation output of postproc.<br>
 <br>
 About postproc:</b> Displays an about box with a short description, the version number and the author name of postproc.<br>
+</div>
 
+<hr>
+
+<a name="API"></a>
+<div align="right"><a href="#">back to top</a></div>
+<div style="background-color:#EEEEEE">
 <h2>API</h2>
 
 There are several functions and variables that are passed to the sandbox postproc spawns to run your instruction files in.<br>
@@ -127,7 +153,13 @@ Returns the path the files were imported from.<br>
 log(text)<br>
 <br>
 Prints &lt;text&gt; to the postproc log.
+</div>
 
+<hr>
+
+<a name="tools"></a>
+<div align="right"><a href="#">back to top</a></div>
+<div style="background-color:#DDDDDD">
 <h1>Included tools</h1>
 
 <h2>embedBuildNumber</h2>
@@ -310,3 +342,4 @@ runTool('objForJass', {mapPath, wc3path})</pre><br>
 <b>Sample:</b><br>
 <br>
 <pre>runTool('vjassImport', {mapPath, [[D:\myJassImports;D:\myJassImports2;subDirOfWorkingDir]]})</pre>
+</div>

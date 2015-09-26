@@ -166,6 +166,7 @@ if havejh then
 	jhhelp = MenuEntry:New(jhmenu, "JassHelper Documentation...", jhshowhelp)
 end
 
+--%POSTPROC_REPLACED_START_MENU
 -- # begin postproc #
 local function postproc_createConfig()
 	local this = {}
@@ -459,6 +460,18 @@ if havePostproc then
 
 	postprocManual = MenuEntry:New(postprocMenu, "Manual", showManual)
 
+	local function update()
+		local path = postproc_dir..[[JNGP\jngp_update.lua]]
+
+		local f = tryloadfile(path, true)
+
+		assert(f, 'cannot load '..tostring(path))
+
+		f:exec({postprocDir = postproc_dir})
+	end
+
+	postprocUpdate = MenuEntry:New(postprocMenu, 'Update', update)
+
 	local function showAbout()
 		if (postproc_requestInfo == nil) then
 			wehack.messagebox('could not open requestInfo')
@@ -478,6 +491,7 @@ if havePostproc then
 	postprocAbout = MenuEntry:New(postprocMenu, "About postproc", showAbout)
 end
 -- # end postproc #
+--%POSTPROC_REPLACED_END_MENU
 
 function initshellext()
     local first, last = string.find(grim.getregpair("HKEY_CLASSES_ROOT\\WorldEdit.Scenario\\shell\\open\\command\\", ""),"NewGen",1)
@@ -728,7 +742,8 @@ function testmap(cmdline)
 	if wh_window.checked then
 		cmdline = cmdline .. " -window"
 	end
-    
+
+	--%POSTPROC_REPLACED_START_TEST_MAP
 	if (havePostproc and (postproc_forcingTest or (postprocEnable.checked and postprocRunMapAuto.checked))) then
 		local postproc_testmap = tryloadfile(postproc_onTestmapPath)
 
@@ -738,6 +753,7 @@ function testmap(cmdline)
 
 		success, cmdline = postproc_testmap(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, forcePostproc = postproc_forcingTest, startLogTracker = postprocUseLogTracker.checked})
 	end
+--%POSTPROC_REPLACED_END_TEST_MAP
 
 	wehack.execprocess(cmdline)
 end
@@ -766,7 +782,9 @@ grim.log("running tool on save: "..cmdargs)
 
 	mapvalid = true
 
-	if (not havePostproc or (not postprocEnable.checked or not postprocBlockTools.checked and not postproc_forcingSave)) then
+	--%POSTPROC_REPLACED_START_COMPILE_MAP_BLOCK
+if (not havePostproc or (not postprocEnable.checked or not postprocBlockTools.checked and not postproc_forcingSave)) then
+--%POSTPROC_REPLACED_END_COMPILE_MAP_BLOCK
 		-- Here I'll add a new configuration for jasshelper. moyack
 		if havejh and jh_enable.checked then
 			cmdline = jh_path .. "jasshelper\\jasshelper.exe"
@@ -789,8 +807,8 @@ grim.log("running tool on save: "..cmdargs)
 
 			mapvalid = mapvalid and (toolresult == 0)
 		end
-	end
 
+	--%POSTPROC_REPLACED_START_COMPILE_MAP_SAVE
 	if (havePostproc and (postproc_forcingSave or (postprocEnable.checked and postprocSaveMapAuto.checked))) then
 		local postproc_save = tryloadfile(postproc_onSavePath)
 
@@ -806,6 +824,7 @@ grim.log("running tool on save: "..cmdargs)
 		
 		mapvalid = mapvalid and success
 	end
+--%POSTPROC_REPLACED_END_COMPILE_MAP_SAVE
 end
 
 dofile("ScExp\\ScExp.lua") 

@@ -1,0 +1,3 @@
+lua setup.lua
+
+pause
