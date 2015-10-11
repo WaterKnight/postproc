@@ -2,12 +2,6 @@ require 'waterlua'
 
 local params = {...}
 
-require 'socket.http'
+local result, errMsg, outMsg = osLib.runProg(nil, 'luaLauncher.exe')
 
-local resp, stat, hdr = socket.http.request{
-  url     = "http://www.moonlightflower.net"
-}
-
-
-
-error(tostring(hdr["content-length"]))
+return result, errMsg, outMsg

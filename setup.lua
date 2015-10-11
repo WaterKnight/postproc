@@ -14,8 +14,6 @@ require 'waterlua'
 
 print(package.cpath)
 
-
-
 local yourOs = t[extension]
 
 assert(yourOs, 'unknown operating system, abort')

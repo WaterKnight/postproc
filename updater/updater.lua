@@ -28,23 +28,32 @@ orient.addPackagePath(waterluaPath)
 
 orient.requireDir(waterluaPath)
 
---[[local http = require 'socket.http'
-local ltn2 = require 'ltn12'
+local f
+local useRemoteScript = false
 
-local t = {}
+if useRemoteScript then
+	local http = require 'socket.http'
+	local ltn2 = require 'ltn12'
 
-local req = {
-	url = 'http://www.moonlightflower.net/index.html',
-	sink = ltn12.sink.table(t)
-}
+	local t = {}
 
-local response, status, header = http.request(req)
+	local req = {
+		url = 'http://www.moonlightflower.net/index.html',
+		sink = ltn12.sink.table(t)
+	}
 
-local s = table.concat(t)
+	local response, status, header = http.request(req)
 
-local f = loadstring(s)]]
+	local s = table.concat(t)
 
-local f = loadfile(io.local_dir()..'updateScript.lua')
+	f = loadstring(s)
+else
+	f = loadfile(io.local_dir()..'updateScript.lua')
+
+	if (f == nil) then
+		print(loadfile(io.local_dir()..'updateScript.lua'))
+	end
+end
 
 f()
 

@@ -278,11 +278,11 @@ end
 
 local config = postproc_createConfig()
 
-local configPath = 'jasshelper.conf'
+local configPath = 'postproc.txt'
 
 config:readFromFile(configPath)
 
-local config_postprocSection = config.sections['postproc']
+local config_postprocSection = config.sections['postproc'] or config
 
 local postproc_dir
 local postproc_logPath

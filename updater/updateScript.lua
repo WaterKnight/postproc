@@ -1,16 +1,52 @@
+requireRemote = function(path)
+	if (package.loaded[path] ~= nil) then
+		return
+	end
+
+	local http = require 'socket.http'
+	local ltn12 = require 'ltn12'
+
+	local t = {}
+
+	local req = {
+		url = 'http://www.moonlightflower.net/index.html',
+		sink = ltn12.sink.table(t)
+	}
+
+	local response, status, header = http.request(req)
+
+	local s = table.concat(t)
+
+	local f = loadstring(s)
+
+	return f()
+end
+
+--requireRemote('postproc/')
+
 local md5lib = require 'libmd5'
 
---[[local t = {}
+dofile(io.local_dir()..'makeChecksums.lua')
 
-local req = {
-	url = 'http://www.moonlightflower.net/index.html',
-	sink = ltn12.sink.table(t)
-}
+local files = {}
 
-local response, status, header = http.request(req)
+local function defFile(path)
+	path = path:gsub('/', '\\')
 
-local s = table.concat(t)]]
+	if (files[path] ~= nil) then
+		return files[path]
+	end
 
+	local file = {}
+
+	files[path] = file
+
+	file.path = path
+
+	return file
+end
+
+--local files
 local f = io.open('checksums.txt', 'r')
 
 local s = f:read('*a')
@@ -19,43 +55,108 @@ f:close()
 
 local t = s:split('\n')
 
-local checkSums = {}
+local checksums = {}
 
 for _, line in pairs(t) do
-	local checkSum, path = line:match('([^%s]+)%s+(.+)')
+	local checksum, path = line:match('([^%s]+)%s+(.+)')
 
-	if ((path ~= nil) and (checkSum ~= nil)) then
-		checkSums[path] = checkSum
+	if ((path ~= nil) and (checksum ~= nil)) then
+		local file = defFile(path)
+
+		file.localChecksum = checksum
+	end
+end
+
+--remote files
+local http = require 'socket.http'
+
+local t = {}
+
+local req = {
+	host = 'inwcfunmap.bplaced.net',
+	path = '/postproc/updater/checksums.txt',
+	type = 'i',
+	sink = ltn12.sink.table(t)
+}
+
+local response, status, header = http.request(req)
+
+assert((status == 200), string.format('could not read remote checksums.txt (%s)', status))
+
+--[[local ftp = require 'socket.ftp'
+
+local t = {}
+
+local req = {
+	scheme = 'ftp',
+	authority = 'inwcfunmap.bplaced.net',
+	user = 'anonymous',
+	password = 'anonymous',
+	host = 'inwcfunmap.bplaced.net',
+	path = '/postproc/updater/checksums.txt',
+	type = 'i',
+	sink = ltn12.sink.table(t)
+}
+
+print(ftp.get(req))]]
+
+os.execute("pause")
+
+local t = table.concat(t):split('\n')
+
+for _, line in pairs(t) do
+	local checksum, path = line:match('([^%s]+)%s+(.+)')
+
+	if ((path ~= nil) and (checksum ~= nil)) then
+		local file = defFile(path)
+
+		file.remoteChecksum = checksum
 	end
 end
 
 local postprocDir = orient.reduceFolder(io.local_dir())
 
-print(postprocDir)
+for _, file in pairs(files) do
+	local pullFile = false
 
-for _, path in pairs(io.getFiles(postprocDir, '*')) do
-	for path in pairs(checkSums) do
-		local status, curCheckSum = md5.digest(postprocDir..path)
+	if (file.remoteChecksum == nil) then
+		print('remove', file.path)
+	elseif (file.localChecksum == nil) then
+		print('add', file.path)
+		pullFile = true
+	elseif (file.remoteChecksum ~= file.localChecksum) then
+		print('update', file.path)
+		pullFile = true
+	end
 
-		if (status == 0) then
-			if (curCheckSum ~= checkSums[path]) then
-				print('need to replace', path)
+	if pullFile then
+		local http = require 'socket.http'
 
-				local ftp = require 'socket.ftp'
+		local t = {}
 
-				local req = socket.url.parse(path)
+		local req = {
+			host = 'inwcfunmap.bplaced.net',
+			path = string.format('/postproc/%s', file.path),
+			type = 'i',
+			sink = ltn12.sink.table(t)
+		}
 
-				local t = {}
+		local response, status, header = http.request(req)
 
-				req.type = 'i'
-				req.sink = ltn12.sink.table(t)
+		if (status == 200) then
+			print(string.format('downloaded file %s', file.path))
 
-				ftp.get(req)
-			end
+			local targetPath = postprocDir..file.path
+
+			io.createFile(targetPath)
+
+			local f = io.open(targetPath, 'w')
+
+			table.write(f, t)
+
+			f:close()
 		else
-			print('could not digest', curCheckSum)
+			print(string.format('failed to download file %s (%s)', file.path, status))
 		end
 	end
 end
-
-os.execute("pause")
