@@ -157,17 +157,21 @@ for _, file in pairs(files) do
 		local response, status, header = http.request(req)
 
 		if (status == 200) then
-			print(string.format('downloaded file %s', file.path))
+			if (header.location == nil) then
+				print(string.format('downloaded file %s', file.path))
 
-			local targetPath = postprocDir..file.path
+				local targetPath = postprocDir..file.path
 
-			--[[io.createFile(targetPath, true)
+				io.createFile(targetPath, true)
 
-			local f = io.open(targetPath, 'w')
+				local f = io.open(targetPath, 'w')
 
-			table.write(f, t)
+				table.write(f, t)
 
-			f:close()]]
+				f:close()
+			else
+				print(string.format('failed to downloadfile %s (file does not exist)', file.path))
+			end
 		else
 			print(string.format('failed to download file %s (%s)', file.path, status))
 		end
@@ -178,3 +182,7 @@ for _, file in pairs(files) do
 	gauge:SetValue(c)
 	gaugeLabel:SetLabel(string.format('%.0f%%', c / filesC * 100))
 end
+
+curFileLabel:SetLabel('done')
+
+wx.wxGetApp():MainLoop()
