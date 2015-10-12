@@ -43,13 +43,21 @@ for _, line in pairs(t) do
 	end
 end
 
+require 'configParser'
+
+local serverConfig = configParser.create()
+
+serverConfig:readFromFile(io.local_dir()..'server.txt')
+
+local server = serverConfig.assignments['server']
+
 --remote files
 local http = require 'socket.http'
 
 local t = {}
 
 local req = {
-	host = 'inwcfunmap.bplaced.net',
+	host = server,
 	path = '/postproc/updater/checksums.txt',
 	type = 'i',
 	sink = ltn12.sink.table(t)
@@ -67,10 +75,10 @@ local t = {}
 
 local req = {
 	scheme = 'ftp',
-	authority = 'inwcfunmap.bplaced.net',
+	authority = server,
 	user = 'anonymous',
 	password = 'anonymous',
-	host = 'inwcfunmap.bplaced.net',
+	host = server,
 	path = '/postproc/updater/checksums.txt',
 	type = 'i',
 	sink = ltn12.sink.table(t)
@@ -140,7 +148,7 @@ for _, file in pairs(files) do
 		local t = {}
 
 		local req = {
-			host = 'inwcfunmap.bplaced.net',
+			host = server,
 			path = string.format('/postproc/%s', file.path),
 			type = 'i',
 			sink = ltn12.sink.table(t)

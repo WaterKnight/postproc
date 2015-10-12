@@ -91,7 +91,8 @@ bb3388d2dc9ea9ee2d195d820585ae1e	updater\libmd5.dll
 f5666fae1387389cc7253d74dc007c42	updater\md5.dll
 74b44e222b63de5f10917c2accdbce21	updater\md51.lua
 90a50f29cc4444875ec2e0aaf5ef128d	updater\orient.lua
+31dd2162a512b97e5bf62b07837c6ddd	updater\server.txt
 982355829252869e4e23550b34a4f2bd	updater\sha1.lua
 2c1931170b30ea890e438c4fb91cf0a9	updater\sha256.lua
 bec961d3aaef446c41f5c8eeb663ceeb	updater\updater.lua
-0364f9a5b057d8e9050c61179688eb8e	updater\updateScript.lua
+e4d0b00b17713b129804b4ebc5bac961	updater\updateScript.lua
