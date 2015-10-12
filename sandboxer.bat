@@ -1,3 +1,0 @@
-sandboxer.lua
-
-pause

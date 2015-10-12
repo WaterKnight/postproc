@@ -3,7 +3,9 @@ local t = {}
 t.getLastOutputPath = function(postprocDir)
 	assert(postprocDir, 'no postprocDir stated')
 
-	local f = io.open(postprocDir..'lastOutputPath.txt')
+	local tempDir = postprocDir..[[temp\]]
+
+	local f = io.open(tempDir..'lastOutputPath.txt')
 
 	if (f == nil) then
 		return nil

@@ -142,7 +142,7 @@ local toAbsPath = function(path, basePath)
 
 	local result = toFolderPath(basePath)
 
-	while (path:find('..\\') == 1) do
+	while (path:find('..\\', 1, true) == 1) do
 		result = result:reduceFolder()
 
 		path = path:sub(4)

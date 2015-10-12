@@ -54,10 +54,13 @@ assert(wc3libsPath, 'no wc3libs path found')
 requireDir(io.toAbsPath(waterluaPath, io.local_dir()))
 requireDir(io.toAbsPath(wc3libsPath, io.local_dir()))
 
-local function updateInstructions()
-	local postprocDir = io.local_dir()
+local postprocDir = io.local_dir()
 
-	--local mapRepo = postprocDir..[[temp\instructions\]]..io.getFileName(mapPath, true)..[[\]]
+local tempDir = postprocDir..[[temp\]]
+
+local function updateInstructions()
+
+	--local mapRepo = tempDir..[[instructions\]]..io.getFileName(mapPath, true)..[[\]]
 	local mapRepo = mapPath..[[_postproc\]]
 
 	if not io.pathExists(mapRepo) then
@@ -142,7 +145,7 @@ else
 	toolsLookupPaths = {}
 end
 
-local defLogPath = io.local_dir()..'log.txt'
+local defLogPath = tempDir..'log.txt'
 
 if (logPath == nil) then
 	logPath = defLogPath
@@ -159,7 +162,7 @@ assert(postprocLog, 'could not open '..logPath)
 local logPipe
 
 if (useConsoleLog == true) then
-	local logPipePath = io.local_dir()..'pipe.bat'
+	local logPipePath = tempDir..'pipe.bat'
 	
 	local f = io.open(logPipePath, 'w+')
 
@@ -205,7 +208,7 @@ end
 
 io.copyFile(mapPath, outputPath, true)
 
-local lastOutputPathFilePath = io.local_dir()..'lastOutputPath.txt'
+local lastOutputPathFilePath = tempDir..'lastOutputPath.txt'
 
 local lastOutputPathFile = io.open(lastOutputPathFilePath, 'w+')
 
@@ -291,7 +294,7 @@ if (instructionFilePath == nil) then
 end
 
 if (instructionFilePath == '[internal]') then
-	instructionFilePath = io.local_dir()..'war3map.wct'
+	instructionFilePath = tempDir..'war3map.wct'
 
 	io.removeFile(instructionFilePath)
 
@@ -427,7 +430,7 @@ end
 
 xpcall(xpfunc, errorHandler)]]
 
-			--local f = io.open(io.local_dir()..'sandboxer.lua', 'w+')
+			--local f = io.open(tempDir..'sandboxer.lua', 'w+')
 
 			--f:write(s)
 
@@ -580,7 +583,7 @@ local function createTmpFile(s)
 	local tmpFileName
 
 	if (wc3path == nil) then
-		tmpFileName = io.local_dir()..'tmpFile.tmp'
+		tmpFileName = tempDir..'tmpFile.tmp'
 	else
 		tmpFileName = wc3path..'\\postproc.tmp'
 	end
@@ -597,7 +600,7 @@ local function createTmpFile(s)
 end
 
 local function unwrap(path)
-	path = path or io.local_dir()..[[temp\unwrapped\]]
+	path = path or tempDir..[[unwrapped\]]
 
 	flushDir(path)
 
@@ -607,7 +610,7 @@ local function unwrap(path)
 end
 
 local function wrap(path)
-	path = path or io.local_dir()..[[temp\unwrapped\]]
+	path = path or tempDir..[[unwrapped\]]
 
 	portLib.mpqImportAll(mapPath, path)
 
@@ -763,7 +766,7 @@ end
 
 xpcall(xpfunc, errorHandler)]]
 
-			local f = io.open(io.local_dir()..'sandboxer.lua', 'w+')
+			local f = io.open(tempDir..'sandboxer.lua', 'w+')
 
 			f:write(s)
 
@@ -1022,7 +1025,7 @@ else
 		local tmpFileName
 
 		if (wc3path == nil) then
-			tmpFileName = io.local_dir()..'tmpFile.tmp'
+			tmpFileName = tempDir..'tmpFile.tmp'
 		else
 			tmpFileName = wc3path..'\\postproc.tmp'
 		end

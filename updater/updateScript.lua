@@ -1,34 +1,9 @@
-requireRemote = function(path)
-	if (package.loaded[path] ~= nil) then
-		return
-	end
-
-	local http = require 'socket.http'
-	local ltn12 = require 'ltn12'
-
-	local t = {}
-
-	local req = {
-		url = 'http://www.moonlightflower.net/index.html',
-		sink = ltn12.sink.table(t)
-	}
-
-	local response, status, header = http.request(req)
-
-	local s = table.concat(t)
-
-	local f = loadstring(s)
-
-	return f()
-end
-
---requireRemote('postproc/')
-
 local md5lib = require 'libmd5'
 
 dofile(io.local_dir()..'makeChecksums.lua')
 
 local files = {}
+local filesC = 0
 
 local function defFile(path)
 	path = path:gsub('/', '\\')
@@ -40,6 +15,7 @@ local function defFile(path)
 	local file = {}
 
 	files[path] = file
+	filesC = filesC + 1
 
 	file.path = path
 
@@ -83,6 +59,8 @@ local response, status, header = http.request(req)
 
 assert((status == 200), string.format('could not read remote checksums.txt (%s)', status))
 
+assert((header.location == nil), 'could not read remote checksums.txt (file does not exist)')
+
 --[[local ftp = require 'socket.ftp'
 
 local t = {}
@@ -100,8 +78,6 @@ local req = {
 
 print(ftp.get(req))]]
 
-os.execute("pause")
-
 local t = table.concat(t):split('\n')
 
 for _, line in pairs(t) do
@@ -116,17 +92,46 @@ end
 
 local postprocDir = orient.reduceFolder(io.local_dir())
 
+require 'orient'
+
+orient.addPackagePath(postprocDir..'?')
+
+require 'wx'
+
+local frame = wx.wxFrame(wx.NULL, wx.wxID_ANY, 'postproc updater', wx.wxDefaultPosition, wx.wxSize(500, 100))
+
+local sizer = wx.wxBoxSizer(wx.wxVERTICAL)
+
+local gaugeLabel = wx.wxStaticText(frame, wx.wxID_ANY, '0%')
+
+local gauge = wx.wxGauge(frame, wx.wxID_ANY, filesC)
+
+local curFileLabel = wx.wxStaticText(frame, wx.wxID_ANY, '')
+
+sizer:Add(gaugeLabel, 1, wx.wxEXPAND)
+sizer:Add(gauge, 2, wx.wxEXPAND)
+sizer:Add(curFileLabel, 1, wx.wxEXPAND)
+
+frame:SetSizer(sizer)
+frame:Centre()
+frame:Show(true)
+
+local c = 0
+
 for _, file in pairs(files) do
 	local pullFile = false
 
 	if (file.remoteChecksum == nil) then
 		print('remove', file.path)
+		curFileLabel:SetLabel(string.format('remove %s', file.path))
 	elseif (file.localChecksum == nil) then
 		print('add', file.path)
 		pullFile = true
+		curFileLabel:SetLabel(string.format('add %s', file.path))
 	elseif (file.remoteChecksum ~= file.localChecksum) then
 		print('update', file.path)
 		pullFile = true
+		curFileLabel:SetLabel(string.format('update %s', file.path))
 	end
 
 	if pullFile then
@@ -148,15 +153,20 @@ for _, file in pairs(files) do
 
 			local targetPath = postprocDir..file.path
 
-			io.createFile(targetPath)
+			--[[io.createFile(targetPath, true)
 
 			local f = io.open(targetPath, 'w')
 
 			table.write(f, t)
 
-			f:close()
+			f:close()]]
 		else
 			print(string.format('failed to download file %s (%s)', file.path, status))
 		end
 	end
+
+	c = c + 1
+
+	gauge:SetValue(c)
+	gaugeLabel:SetLabel(string.format('%.0f%%', c / filesC * 100))
 end

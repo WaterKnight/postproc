@@ -26,7 +26,7 @@ end
 
 
 --print(table.concat(t, '\n'))
-local win = wx.wxFrame(wx.NULL, wx.wxID_ANY, 'hello world', wx.wxDefaultPosition, wx.wxSize(250, 150))
+local win = wx.wxFrame(wx.NULL, wx.wxID_ANY, 'postproc JNGP setup', wx.wxDefaultPosition, wx.wxSize(250, 150))
 
 win:Show(true)
 win:Centre()
@@ -52,9 +52,14 @@ local dialogButton = wx.wxButton(win, wx.wxID_ANY, 'select path', wx.wxPoint(0, 
 local dialog = wx.wxFileDialog(win, 'pick WorldEditor executable', '', '', 'exe files (*.exe)|*.exe')
 
 local function selectPath()
-	dialog:ShowModal()
+	local ret = dialog:ShowModal()
+
+	if (ret ~= wx.wxID_OK) then
+		return
+	end
 
 	textCtrl:Clear()
+
 	textCtrl:AppendText(io.getFolder(dialog:GetPath()))
 end
 
@@ -90,7 +95,7 @@ local function install()
 		return
 	end
 
-	local jngpConfigPath = targetPath..'postproc.txt'
+	local jngpConfigPath = targetPath..'postproc.conf'
 
 	local f = io.open(jngpConfigPath, 'w+')
 

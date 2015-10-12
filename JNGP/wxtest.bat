@@ -1,3 +1,0 @@
-lua wxtest.lua
-
-pause

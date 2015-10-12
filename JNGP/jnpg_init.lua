@@ -22,6 +22,12 @@ package.path = script_path()..'?.lua'..';'..package.path
 
 require 'orient'
 
+local f = loadfile(io.local_dir()..'createWehackLua.lua')
+
+if (f ~= nil) then
+	f()
+end
+
 local wehackPath = io.local_dir()..string.format('%s\\wehack.lua', wehackVersion)
 
 dofile(wehackPath)

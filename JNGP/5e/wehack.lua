@@ -179,8 +179,12 @@ local function postproc_createConfig()
 
 		local f = io.open(path, 'r')
 
-		if not ignoreNotFound then
-			assert(f, 'configParser: cannot open file '..tostring(path))
+		if (f == nil) then
+			if not ignoreNotFound then
+				error(string.format('configParser: cannot open file %s', tostring(path)))
+			else
+				return false
+			end
 		end
 
 		local curSection = nil
@@ -210,7 +214,7 @@ local function postproc_createConfig()
 				local val = line:sub(posEnd + 1, line:len())
 
 				if ((type(val) == 'string')) then
-					val = val:match("\"(.*)\"")
+					val = val:match('\"(.*)\"')
 				end
 
 				if (curSection ~= nil) then
@@ -222,37 +226,82 @@ local function postproc_createConfig()
 		end
 
 		f:close()
+
+		return true
+	end
+
+	function this:merge(other)
+		assert(other, 'no other')
+
+		for name, val in pairs(other.assignments) do
+			this.assignments[name] = val
+		end
+
+		for name, otherSection in pairs(other.sections) do
+			local section = this.sections[name]
+
+			if (section == nil) then
+				section = {}
+
+				this.sections[name] = section
+			end
+
+			for name, val in pairs(otherSection.assignments) do
+				section.assignments[name] = val
+			end
+		end
 	end
 
 	return this
 end
 
-local config = postproc_createConfig()
+postproc_jngpConfig = postproc_createConfig()
 
-local configPath = 'postproc.txt'
+postproc_jngpConfigPath = 'postproc.conf'
 
-config:readFromFile(configPath)
+if not postproc_jngpConfig:readFromFile(postproc_jngpConfigPath) then
+	wehack.messagebox(string.format('could not read %s'), postproc_jngpConfigPath)
+end
 
-local config_postprocSection = config.sections['postproc'] or config
+postproc_dir = postproc_jngpConfig.assignments['postprocDir']
 
-local postproc_dir
-local postproc_logPath
-local postproc_outputPathNoExt
+if (postproc_dir == nil) then
+	wehack.messagebox('no postproc dir in jngp config', 'postproc', false)
 
-local postproc_onStartupPath
-local postproc_onSavePath
-local postproc_onTestmapPath
-local postproc_requestInfo
+	postproc = false
+else
+	postproc = true
+end
+
+if not postproc_dir:match('\\$') then
+	postproc_dir = postproc_dir..'\\'
+end
+
+local postproc_jngpDir = postproc_dir..[[JNGP\]]
+local postproc_tempDir = postproc_dir..[[temp\]]
+
+local postproc_config = postproc_createConfig()
+
+local postproc_configPath = postproc_dir..'config.conf'
+
+postproc_config:readFromFile(postproc_configPath)
+
+postproc_config:merge(postproc_jngpConfig)
+
+local postproc_logPath = postproc_config.assignments['logPath']
+local postproc_outputPathNoExt = postproc_config.assignments['outputPathNoExt']
 
 local function tryloadfile(path, doShell)
 	if doShell then
-		assert(postproc_dir, 'no postproc dir')
+		if (postproc_dir == nil) then
+			wehack.messagebox('no postproc dir', 'postproc', true)
 
-		local shellPath = postproc_dir..[[JNGP\jngp_shell.lua]]
+			return nil
+		end
+
+		local shellPath = postproc_jngpDir..[[jngp_shell.lua]]
 
 		local f = loadfile(shellPath)
-
-		--assert(f, 'cannot open '..tostring(shellPath))
 
 		if (f == nil) then
 			return nil
@@ -270,44 +319,30 @@ local function tryloadfile(path, doShell)
 	return loadfile(path)
 end
 
-havePostproc = (config_postprocSection ~= nil)
+local postproc_onStartupPath = postproc_jngpDir..'jngp_onStartup.lua'
+local postproc_onSavePath = postproc_jngpDir..'jngp_onSave.lua'
+local postproc_onTestmapPath = postproc_jngpDir..'jngp_onTestmap.lua'
+local postproc_requestInfo = tryloadfile(postproc_jngpDir..'jngp_requestInfo.lua')
 
-if (config_postprocSection ~= nil) then
-	postproc_dir = config_postprocSection.assignments['postprocDir']
-	postproc_logPath = config_postprocSection.assignments['logPath']
-	postproc_outputPathNoExt = config_postprocSection.assignments['outputPathNoExt']
+local t = {postproc_onStartupPath, postproc_onSavePath, postproc_onTestmapPath}
+local t2 = {}
 
-	if (postproc_dir ~= nil) then
-		if not postproc_dir:match('\\$') then
-			postproc_dir = postproc_dir..'\\'
-		end
-
-		postproc_onStartupPath = postproc_dir..'JNGP\\jngp_onStartup.lua'
-		postproc_onSavePath = postproc_dir..'JNGP\\jngp_onSave.lua'
-		postproc_onTestmapPath = postproc_dir..'JNGP\\jngp_onTestmap.lua'
-		postproc_requestInfo = tryloadfile(postproc_dir..'JNGP\\jngp_requestInfo.lua')
-
-		local t = {postproc_onStartupPath, postproc_onSavePath, postproc_onTestmapPath}
-		local t2 = {}
-
-		for i = 1, #t, 1 do
-			if (tryloadfile(t[i]) == nil) then
-				t2[#t2 + 1] = t[i]
-			end
-		end
-
-		if (#t2 > 0) then
-			wehack.messagebox('warning: found postproc config section but could not load files:\n'..table.concat(t2, '\n'))
-		end
+for i = 1, #t, 1 do
+	if (tryloadfile(t[i]) == nil) then
+		t2[#t2 + 1] = t[i]
 	end
+end
 
-	if (postproc_logPath == nil) then
-		postproc_logPath = postproc_dir..'log.txt'
-	end
+if (#t2 > 0) then
+	wehack.messagebox('warning: inited postproc but could not load files:\n'..table.concat(t2, '\n'))
+end
 
-	if (postproc_outputPathNoExt == nil) then
-		postproc_outputPathNoExt = postproc_dir..'output'
-	end
+if (postproc_logPath == nil) then
+	postproc_logPath = postproc_tempDir..'log.txt'
+end
+
+if (postproc_outputPathNoExt == nil) then
+	postproc_outputPathNoExt = postproc_tempDir..'output'
 end
 
 local postproc_startup = tryloadfile(postproc_onStartupPath, true)
@@ -319,20 +354,20 @@ end
 local postproc_forcingSave = false
 local postproc_forcingTest = false
 
-if havePostproc then
-	postprocMenu = wehack.addmenu("postproc")
-	
-	postprocEnable = TogMenuEntry:New(postprocMenu, "Enable", nil, true)
+do
+	postproc_menu = wehack.addmenu('postproc')
 
-	wehack.addmenuseparator(postprocMenu)
+	postproc_menu_enable = TogMenuEntry:New(postproc_menu, 'Enable', nil, true)
 
-	postprocBlockTools = TogMenuEntry:New(postprocMenu, "Block other compiling tools", nil, false)
+	wehack.addmenuseparator(postproc_menu)
 
-	postprocSaveMapAuto = TogMenuEntry:New(postprocMenu, "Use postproc when map is being saved", nil, false)
+	postproc_menu_blockTools = TogMenuEntry:New(postproc_menu, 'Block other compiling tools', nil, false)
 
-	postprocRunMapAuto = TogMenuEntry:New(postprocMenu, "Use last compiled map when testing", nil, false)
+	postproc_menu_saveMapAuto = TogMenuEntry:New(postproc_menu, 'Use postproc when map is being saved', nil, false)
 
-	wehack.addmenuseparator(postprocMenu)
+	postproc_menu_runMapAuto = TogMenuEntry:New(postproc_menu, 'Use last compiled map when testing', nil, false)
+
+	wehack.addmenuseparator(postproc_menu)
 
 	local function editInstructions()
 		local mapPath = wehack.findmappath()
@@ -349,56 +384,58 @@ if havePostproc then
 			return
 		end
 		
-		local path = postproc_dir..[[JNGP\jngp_pullInstructions.lua]]
+		local path = postproc_jngpDir..[[jngp_pullInstructions.lua]]
 
 		local f = tryloadfile(path, true)
 
-		assert(f, 'cannot load '..tostring(path))
-
-		f:exec({mapPath = mapPath, postprocDir = postproc_dir})
+		if (f ~= nil) then
+			f:exec({mapPath = mapPath, postprocDir = postproc_dir})
+		else
+			wehack.messagebox('could not load '..tostring(path), 'postproc', true)
+		end
 	end
 
-	MenuEntry:New(postprocMenu, "Edit instructions", editInstructions)
+	MenuEntry:New(postproc_menu, 'Edit instructions', editInstructions)
 
-	wehack.addmenuseparator(postprocMenu)
+	wehack.addmenuseparator(postproc_menu)
 
 	local function showPaths()
 		local t = {}
 
-		t[#t + 1] = "postprocDir="..postproc_dir
-		t[#t + 1] = "logPath="..postproc_logPath
-		t[#t + 1] = "outputPathNoExt="..postproc_outputPathNoExt
+		t[#t + 1] = 'postprocDir='..postproc_dir
+		t[#t + 1] = 'logPath='..postproc_logPath
+		t[#t + 1] = 'outputPathNoExt='..postproc_outputPathNoExt
 
 		wehack.messagebox(table.concat(t, '\n'), 'postproc paths')
 	end
 
-	postprocShowPaths = MenuEntry:New(postprocMenu, "Show current paths", showPaths)
+	postprocShowPaths = MenuEntry:New(postproc_menu, 'Show current paths', showPaths)
 
 	local function showConfig()
-		os.execute("start \"\" \""..postproc_dir.."config.conf".."\"")
+		os.execute('start \"\" \"'..postproc_dir..'config.conf'..'\"')
 	end
 
-	postprocShowConfig = MenuEntry:New(postprocMenu, "Show config", showConfig)
+	postprocShowConfig = MenuEntry:New(postproc_menu, 'Show config', showConfig)
 
 	local function showConfigTools()
-		os.execute("start \"\" \""..postproc_dir.."configTools.slk".."\"")
+		os.execute('start \"\" \"'..postproc_dir..'configTools.slk'..'\"')
 	end
 
-	postprocShowConfigTools = MenuEntry:New(postprocMenu, "Show tools", showConfigTools)
+	postproc_menu_showConfigTools = MenuEntry:New(postproc_menu, 'Show tools', showConfigTools)
 
-	local function showJasshelperConf()
-		os.execute("start \"\" \"".."jasshelper.conf".."\"")
+	local function showJNGPConf()
+		os.execute('start \"\" \"'..'postproc.conf'..'\"')
 	end
 
-	postprocShowJasshelperConf = MenuEntry:New(postprocMenu, "Show jasshelper.conf", showJasshelperConf)
+	postproc_menu_showJNGPConf = MenuEntry:New(postproc_menu, 'Show postproc.conf (JNGP)', showJNGPConf)
 
 	local function showLog()
-		os.execute("start \"\" \""..postproc_logPath.."\"")
+		os.execute('start \"\" \"'..postproc_logPath..'\"')
 	end
 
-	postprocShowLog = MenuEntry:New(postprocMenu, "Show log", showLog)
+	postproc_menu_showLog = MenuEntry:New(postproc_menu, 'Show log', showLog)
 
-	wehack.addmenuseparator(postprocMenu)
+	wehack.addmenuseparator(postproc_menu)
 
 	local function saveMap()
 		local mapPath = wehack.findmappath()
@@ -416,11 +453,11 @@ if havePostproc then
 		postproc_forcingSave = false
 	end
 
-	postprocUseConsoleLog = TogMenuEntry:New(postprocMenu, "Use console log", nil, false)
+	postproc_menu_useConsoleLog = TogMenuEntry:New(postproc_menu, 'Use console log', nil, false)
 
-	postprocSaveMap = MenuEntry:New(postprocMenu, "Save and compile map", saveMap)
+	postproc_menu_saveMap = MenuEntry:New(postproc_menu, 'Save and compile map', saveMap)
 
-	postprocUseLogTracker = TogMenuEntry:New(postprocMenu, "Start LogTracker when testing", nil, false)
+	postproc_menu_useLogTracker = TogMenuEntry:New(postproc_menu, 'Start LogTracker when testing', nil, false)
 
 	local function runMap()
 		if (postproc_requestInfo == nil) then
@@ -439,7 +476,7 @@ if havePostproc then
 			return
 		end
 
-		local cmdline = "\""..path.."\\War3.exe\"".." -loadfile \""..mapPath.."\""
+		local cmdline = '\"'..path..'\\War3.exe\"'..' -loadfile \"'..mapPath..'\"'
 
 		postproc_forcingTest = true
 
@@ -448,9 +485,9 @@ if havePostproc then
 		postproc_forcingTest = false
 	end
 
-	postprocRunMap = MenuEntry:New(postprocMenu, "Run last compiled map", runMap)
+	postproc_menu_runMap = MenuEntry:New(postproc_menu, 'Run last compiled map', runMap)
 
-	wehack.addmenuseparator(postprocMenu)
+	wehack.addmenuseparator(postproc_menu)
 
 	local function showManual()
 		local path = postproc_dir..'manual.html'
@@ -458,19 +495,21 @@ if havePostproc then
 		os.execute(string.format('%q', path))
 	end
 
-	postprocManual = MenuEntry:New(postprocMenu, "Manual", showManual)
+	postproc_menu_manual = MenuEntry:New(postproc_menu, 'Manual', showManual)
 
 	local function update()
-		local path = postproc_dir..[[JNGP\jngp_update.lua]]
+		local path = postproc_jngpDir..[[jngp_update.lua]]
 
 		local f = tryloadfile(path, true)
 
-		assert(f, 'cannot load '..tostring(path))
-
-		f:exec({postprocDir = postproc_dir})
+		if (f ~= nil) then
+			f:exec({postprocDir = postproc_dir})
+		else
+			wehack.messagebox('cannot load '..tostring(path), 'postproc', true)
+		end
 	end
 
-	postprocUpdate = MenuEntry:New(postprocMenu, 'Update', update)
+	postproc_menu_update = MenuEntry:New(postproc_menu, 'Update', update)
 
 	local function showAbout()
 		if (postproc_requestInfo == nil) then
@@ -478,7 +517,7 @@ if havePostproc then
 
 			return
 		end
-	
+
 		local t = postproc_requestInfo()
 
 		local version = t.getVersion(postproc_dir)
@@ -488,7 +527,7 @@ if havePostproc then
 		wehack.messagebox(string.format(s, version), 'About postproc', false)
 	end
 
-	postprocAbout = MenuEntry:New(postprocMenu, "About postproc", showAbout)
+	postproc_menu_about = MenuEntry:New(postproc_menu, 'About postproc', showAbout)
 end
 -- # end postproc #
 --%POSTPROC_REPLACED_END_MENU
@@ -744,14 +783,14 @@ function testmap(cmdline)
 	end
 
 	--%POSTPROC_REPLACED_START_TEST_MAP
-	if (havePostproc and (postproc_forcingTest or (postprocEnable.checked and postprocRunMapAuto.checked))) then
+	if (postproc and (postproc_forcingTest or (postproc_menu_enable.checked and postproc_menu_runMapAuto.checked))) then
 		local postproc_testmap = tryloadfile(postproc_onTestmapPath)
 
 		assert(postproc_testmap, 'could not load '..tostring(postproc_onTestmapPath))
 
 		local success = false
 
-		success, cmdline = postproc_testmap(config, {cmdline = cmdline, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, forcePostproc = postproc_forcingTest, startLogTracker = postprocUseLogTracker.checked})
+		success, cmdline = postproc_testmap(postproc_jngpConfig, {cmdline = cmdline, wc3path = path, configPath = postproc_jngpConfigPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, forcePostproc = postproc_forcingTest, startLogTracker = postproc_menu_useLogTracker.checked})
 	end
 --%POSTPROC_REPLACED_END_TEST_MAP
 
@@ -783,7 +822,7 @@ grim.log("running tool on save: "..cmdargs)
 	mapvalid = true
 
 	--%POSTPROC_REPLACED_START_COMPILE_MAP_BLOCK
-if (not havePostproc or (not postprocEnable.checked or not postprocBlockTools.checked and not postproc_forcingSave)) then
+if (not postproc or (not postproc_menu_enable.checked or not postproc_menu_blockTools.checked and not postproc_forcingSave)) then
 --%POSTPROC_REPLACED_END_COMPILE_MAP_BLOCK
 		-- Here I'll add a new configuration for jasshelper. moyack
 		if havejh and jh_enable.checked then
@@ -809,7 +848,7 @@ if (not havePostproc or (not postprocEnable.checked or not postprocBlockTools.ch
 		end
 
 	--%POSTPROC_REPLACED_START_COMPILE_MAP_SAVE
-	if (havePostproc and (postproc_forcingSave or (postprocEnable.checked and postprocSaveMapAuto.checked))) then
+	if (postproc and (postproc_forcingSave or (postproc_menu_enable.checked and postproc_menu_saveMapAuto.checked))) then
 		local postproc_save = tryloadfile(postproc_onSavePath)
 
 		assert(postproc_save, 'could not load '..tostring(postproc_onSavePath))
@@ -817,8 +856,8 @@ if (not havePostproc or (not postprocEnable.checked or not postprocBlockTools.ch
 		local success = false
 
 		wehack.setwaitcursor(true)
-		
-		success = postproc_save(config, {mapPath = mappath, wc3path = path, configPath = configPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, useConsoleLog = postprocUseConsoleLog.checked})
+
+		success = postproc_save(postproc_jngpConfig, {mapPath = mappath, wc3path = path, configPath = postproc_jngpConfigPath, postprocDir = postproc_dir, logPath = postproc_logPath, outputPathNoExt = postproc_outputPathNoExt, useConsoleLog = postproc_menu_useConsoleLog.checked})
 
 		wehack.setwaitcursor(false)
 		

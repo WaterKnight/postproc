@@ -59,7 +59,7 @@ end
 
 local config = createConfig()
 
-local configPath = 'postproc.txt'
+local configPath = 'postproc.conf'
 
 config:readFromFile(configPath)
 
