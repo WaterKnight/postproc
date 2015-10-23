@@ -1,6 +1,4 @@
-local t = {}
-
-local function script_path()
+function script_path()
 	local str = debug.getinfo(2, "S").source:sub(2)
 
 	str = str:gsub('/', '\\')
@@ -14,13 +12,11 @@ local function script_path()
 	return dir
 end
 
-t.script_path = script_path
-
 package.cpath = script_path()..'?.dll'..';'..package.cpath
 
 require 'lfs'
 
-local function addPackagePath(path)
+function addPackagePath(path)
 	assert(path, 'no path')
 
 	local luaPath = path..'.lua'
@@ -36,9 +32,7 @@ local function addPackagePath(path)
 	end
 end
 
-t.addPackagePath = addPackagePath
-
-local function requireDir(path)
+function requireDir(path)
 	assert(path, 'no path')
 
 	path = path:gsub('/', '\\')
@@ -60,9 +54,7 @@ local function requireDir(path)
 	require(name)
 end
 
-t.requireDir = requireDir
-
-local function isAbsPath(path)
+local isAbsPath = function(path)
 	assert(path, 'no path')
 
 	if path:find(':') then
@@ -72,7 +64,9 @@ local function isAbsPath(path)
 	return false
 end
 
-t.isAbsPath = isAbsPath
+io.isAbsPath = function(path)
+	return isAbsPath(path)
+end
 
 local function toFolderPath(path)
 	assert(path, 'no path')
@@ -89,7 +83,7 @@ end
 	return path
 end
 
-local function getFolder(path)
+function getFolder(path)
 	assert(path, 'no path')
 
 	local res = ""
@@ -103,9 +97,7 @@ local function getFolder(path)
 	return res
 end
 
-t.getFolder = getFolder
-
-local function getFileName(path, noExtension)
+function getFileName(path, noExtension)
 	assert(path, 'no path')
 
 	while path:find("\\") do
@@ -121,9 +113,7 @@ local function getFileName(path, noExtension)
 	return path
 end
 
-t.getFileName = getFileName
-
-local function reduceFolder(s, amount)
+string.reduceFolder = function(s, amount)
 	if (amount == nil) then
 		amount = 1
 	end
@@ -132,18 +122,10 @@ local function reduceFolder(s, amount)
 		return s
 	end
 
-	return reduceFolder(getFolder(s:sub(1, getFolder(s):len() - 1))..getFileName(s), amount - 1)
+	return string.reduceFolder(getFolder(s:sub(1, getFolder(s):len() - 1))..getFileName(s), amount - 1)
 end
 
-t.reduceFolder = reduceFolder
-
-local function curDir()
-	return toFolderPath(lfs.currentdir())
-end
-
-t.curDir = curDir
-
-local function toAbsPath(path, basePath)
+local toAbsPath = function(path, basePath)
 	assert(path, 'no path')
 
 	path = path:gsub('/', '\\')
@@ -155,13 +137,13 @@ local function toAbsPath(path, basePath)
 	--local scriptDir = getFolder(scriptPath:gsub('/[^/]+$', ''))
 
 	if (basePath == nil) then
-		basePath = curDir()
+		basePath = io.curDir()
 	end
 
 	local result = toFolderPath(basePath)
 
 	while (path:find('..\\') == 1) do
-		result = reduceFolder(result)
+		result = result:reduceFolder()
 
 		path = path:sub(4)
 	end
@@ -171,7 +153,13 @@ local function toAbsPath(path, basePath)
 	return result
 end
 
-t.toAbsPath = toAbsPath
+io.toAbsPath = function(path, basePath)
+	return toAbsPath(path, basePath)
+end
+
+io.curDir = function()
+	return toFolderPath(lfs.currentdir())
+end
 
 local function getCallStack()
 	local t = {}
@@ -191,7 +179,7 @@ local function getCallStack()
 	return t
 end
 
-local function local_dir(level)
+io.local_dir = function(level)
 	if (level == nil) then
 		level = 0
 	end
@@ -208,13 +196,9 @@ local function local_dir(level)
 
 	path = path:match('(.*\\)') or ''
 
-	if not isAbsPath(path) then
-		path = curDir()..path
+	if not io.isAbsPath(path) then
+		path = io.curDir()..path
 	end
 
 	return path
 end
-
-t.local_dir = local_dir
-
-orient = t

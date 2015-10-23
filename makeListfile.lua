@@ -16,7 +16,7 @@ package.path = script_path()..'?.lua'..';'..package.path
 
 require 'orient'
 
-local postprocDir = orient.reduceFolder(orient.toAbsPath(script_path()))
+local postprocDir = orient.toAbsPath(script_path())
 
 local configPath = postprocDir..'postproc_getconfigs.lua'
 
@@ -30,25 +30,29 @@ orient.addPackagePath(waterluaPath)
 
 orient.requireDir(waterluaPath)
 
-local checkSumsPath = io.local_dir()..'checksums.txt'
+local listfilePath = io.local_dir()..'listfile.txt'
 
-local f = io.open(checkSumsPath, 'w+')
+local f = io.open(listfilePath, 'w+')
+
+f:write('path\tmd5\t\n')
+
+f:write('---------------------\n')
 
 local files = io.getFiles(postprocDir, '*')
 
 for _, path in pairs(files) do
 	local shortPath = path:sub(postprocDir:len() + 1, path:len())
 
-	if ((path ~= checkSumsPath) and (shortPath:sub(1, 1) ~= '.')) then
+	if ((path ~= listfilePath) and (shortPath:sub(1, 1) ~= '.')) then
 		require 'libmd5'
 
-		local status, checkSum = md5.digest(path)
+		local status, checksum = md5.digest(path)
 
 		if (status == 0) then
-			print(string.format('write %s %s', shortPath, checkSum))
-			f:write(checkSum, '\t', shortPath, '\n')
+			print(string.format('write %s %s', shortPath, checksum))
+			f:write(shortPath, '\t', checksum, '\n')
 		else
-			print(string.format('could not digest %s (%s)', shortPath, checkSum))
+			print(string.format('could not digest %s (%s)', shortPath, checksum))
 		end
 	end
 end
