@@ -1,3 +1,0 @@
-lua makeListfile.lua
-
-pause
