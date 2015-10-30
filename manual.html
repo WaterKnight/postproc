@@ -1,12 +1,19 @@
-<h1>postproc manual 2015-06-27</h1>
+<h1>postproc manual 2015-10-30</h1>
 
 Using postproc you can apply processing tools to wc3 map files for finalization, e.g. to transform .j file, importing a credits text file or running an optimizer.<br>
-To not damage or alter the original map file, first a copy is generated and then all actions are targeting the replicate.<br>
+To not damage or alter the original map file, first a copy is generated and then all actions are targeting the replicate.<br><br>
+
+Links:<br>
+<a href='http://www.moonlightflower.net/wc3/postproc/'>Developer's website</a><br>
+<a href='http://www.hiveworkshop.com/forums/warcraft-editing-tools-277/jngp-postproc-262192/'>Hiveworkshop thread</a><br>
+<a href='http://warcraft.ingame.de/forum/threads/215311-postproc'>Inwarcraft thread</a><br>
+
 
 <h3><a name="toc">Table of contents</toc></h3>
 <ul>
 	<li><a href="#externally">Running postproc externally</a></li>
 	<li><a href="#JNGP">JNGP plugIn</a></li>
+	<li><a href="#Updating">Update concept</a></li>
 	<li><a href="#API">API</a></li>
 	<li><a href="#tools">Included tools</a></li>
 </ul>
@@ -57,17 +64,13 @@ The easier way to use postproc is via JNGP.<br>
 
 <h3>Installation</h3>
 
-Copy the lua51.dll from the postproc\JNGP directory into your JNGP directory, possibly replacing the existing one.<br>
-Depending on which JNGP version you possess, choose a wehack.lua from postproc\JNGP\&lt;version&gt; and copy it to your JNGP directory, replacing the existing one.<br>
-Open the jasshelper.conf in your JNGP directory and add:<br>
-<br>
-	[postproc]<br>
-	postprocDir="&lt;path_to_postproc&gt;"<br>
-<br>
-Instead of &lt;path_to_postproc&gt; type in the path to your postproc directory.<br>
-<br>
+Go to &lt;pathToPostproc&gt;/JNGP and execute the setup.bat file. State the path to your JNGP editor there and which type/version of editor it is.<br>
+The setup will provide a postproc.conf file as well as replace the lua51.dll and the wehack.lua of the target JNGP editor. This can be overwritten any time later.<br><br>
+
+The postproc.conf contains the path back to postproc and the chosen JNGP version to evaluate the right wehack.lua.<br><br>
+
 Afterwards we are set and you can run JNGP.<br>
-An additional menu "postproc" should be shown in the menu bar.<br>
+An additional entry "postproc" should be shown in the menu bar.<br>
 
 <h3>Functions</h3>
 
@@ -90,8 +93,27 @@ An additional menu "postproc" should be shown in the menu bar.<br>
 <b>Start LogTracker when testing:</b> The LogTracker is an additional module you can use to open up a command shell while Wc3 is running. If the map writes data to the hard disk via the Preload bug in a certain standardized fashion, the LogTracker can read it back and thereby show you live debugging output while the map is running.<br>
 <b>Run last compiled map:</b> Starts Wc3 and loads the last compilation output of postproc.<br>
 <br>
-About postproc:</b> Displays an about box with a short description, the version number and the author name of postproc.<br>
+<b>Manual:</b> Shows this manual.<br>
+<b>Update:</b> Executes the &lt;pathToPostproc&gt;/postprocInstaller.exe.<br>
+<b>About postproc:</b> Displays an about box with a short description, the version number and the author name of postproc.<br>
 </div>
+
+<hr>
+
+<a name="Updating"></a>
+<div align="right"><a href="#">back to top</a></div>
+<div style="background-color:#EEEEEE">
+<h2>Update Concept</h2>
+
+postproc may receive updates now and then. To minimize the effort you have to spent, there is an updater mechanism.<br>
+
+Currently it is only triggered when the user requests to do so by either calling the &lt;pathToPostproc&gt;/postprocInstaller.exe executable or the "Update" button in JNGP.<br>
+
+It will then make a request to a server at a specific url where the update script resides. The update script may be subject to changes, too, which is why it is not initially stored on your local machine.<br>
+
+The update script is another executable + libs that are temporarily saved in the &lt;pathToPostproc&gt;/updateTemp directory. It now requests the actual postproc files from another url and only those that differ from your local state (it compares md5 digests).<br>
+
+<font color='#FF0000'>Note: Do not put own files inside the postproc directory as those may be up for transformation/deletion. If some functionality of postproc should not work anymore after an update, the safest bet is to run &lt;pathToPostproc&gt;/postprocInstaller.exe manually (maybe wait for a new version). If the installer/updater itself is busted through some unfortunate script (so you cannot receive updates anymore), you have to retrieve postproc manually again (see links above).</font>
 
 <hr>
 
