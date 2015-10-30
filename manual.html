@@ -111,15 +111,16 @@ Currently it is only triggered when the user requests to do so by either calling
 
 It will then make a request to a server at a specific url where the update script resides. The update script may be subject to changes, too, which is why it is not initially stored on your local machine.<br>
 
-The update script is another executable + libs that are temporarily saved in the &lt;pathToPostproc&gt;/updateTemp directory. It now requests the actual postproc files from another url and only those that differ from your local state (it compares md5 digests).<br>
+The update script is another executable + libs that are temporarily saved in the &lt;pathToPostproc&gt;/updateTemp directory. It now requests the actual postproc files from another url and only those that differ from your local state (it compares md5 digests).<br><br>
 
-<font color='#FF0000'>Note: Do not put own files inside the postproc directory as those may be up for transformation/deletion. If some functionality of postproc should not work anymore after an update, the safest bet is to run &lt;pathToPostproc&gt;/postprocInstaller.exe manually (maybe wait for a new version). If the installer/updater itself is busted through some unfortunate script (so you cannot receive updates anymore), you have to retrieve postproc manually again (see links above).</font>
+<font color='#FF0000'><b>Note: Do not put own files inside the postproc directory as those may be up for transformation/deletion. If some functionality of postproc should not work anymore after an update, the safest bet is to run &lt;pathToPostproc&gt;/postprocInstaller.exe manually (maybe wait for a new version). If the installer/updater itself is busted through some unfortunate script (so you cannot receive updates anymore), you have to retrieve postproc manually again (see links above).</b></font>
+</div>
 
 <hr>
 
 <a name="API"></a>
 <div align="right"><a href="#">back to top</a></div>
-<div style="background-color:#EEEEEE">
+<div style="background-color:#DDDDDD">
 <h2>API</h2>
 
 There are several functions and variables that are passed to the sandbox postproc spawns to run your instruction files in.<br>
@@ -181,7 +182,7 @@ Prints &lt;text&gt; to the postproc log.
 
 <a name="tools"></a>
 <div align="right"><a href="#">back to top</a></div>
-<div style="background-color:#DDDDDD">
+<div style="background-color:#EEEEEE">
 <h1>Included tools</h1>
 
 <h2>embedBuildNumber</h2>
