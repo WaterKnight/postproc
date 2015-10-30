@@ -25,7 +25,7 @@ require 'orient'
 local f = loadfile(io.local_dir()..'createWehackLua.lua')
 
 if (f ~= nil) then
-	f()
+	--f()
 end
 
 local wehackPath = io.local_dir()..string.format('%s\\wehack.lua', wehackVersion)

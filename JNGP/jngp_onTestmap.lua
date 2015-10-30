@@ -72,8 +72,8 @@ function getFileExtension(path)
 end
 
 function copyFile(source, target, overwrite)
-	local sourceFile = io.open(source, "rb")
-	local targetFile = io.open(target, "w+b")
+	local sourceFile = io.open(source, 'rb')
+	local targetFile = io.open(target, 'w+b')
 
 	assert(sourceFile, 'copyFile: cannot open source '..tostring(source))
 	assert(targetFile, 'copyFile: cannot open target '..tostring(target))
@@ -82,6 +82,8 @@ function copyFile(source, target, overwrite)
 
 	sourceFile:close()
 	targetFile:close()
+
+	return true
 end
 
 local ext = mapPath:match('%.[^%..]*$') or ''
@@ -120,7 +122,9 @@ if doIt then
 	local swapStrat = true
 
 	if swapStrat then
-		copyFile(outputPath, mapPath, true)
+		if not copyFile(outputPath, mapPath, true) then
+			error('could not copy '..outputPath..' to '..mapPath)
+		end
 	else
 		local t = argsplit(cmdline)
 

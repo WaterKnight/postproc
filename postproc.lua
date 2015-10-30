@@ -41,9 +41,9 @@ package.path = script_path()..'?.lua'..';'..package.path
 
 require 'orient'
 
-local config = dofile(script_path()..'postproc_getconfigs.lua')
+local config = dofile(orient.local_dir()..'postproc_getconfigs.lua')
 
-addPackagePath(script_path()..'?')
+orient.addPackagePath(script_path()..'?')
 
 local waterluaPath = config.assignments['waterlua']
 local wc3libsPath = config.assignments['wc3libs']
@@ -51,8 +51,8 @@ local wc3libsPath = config.assignments['wc3libs']
 assert(waterluaPath, 'no waterlua path found')
 assert(wc3libsPath, 'no wc3libs path found')
 
-requireDir(io.toAbsPath(waterluaPath, io.local_dir()))
-requireDir(io.toAbsPath(wc3libsPath, io.local_dir()))
+orient.requireDir(orient.toAbsPath(waterluaPath, orient.local_dir()))
+orient.requireDir(orient.toAbsPath(wc3libsPath, orient.local_dir()))
 
 local postprocDir = io.local_dir()
 
@@ -206,7 +206,9 @@ if not io.isAbsPath(outputPath) then
 	outputPath = io.curDir()..outputPath
 end
 
-io.copyFile(mapPath, outputPath, true)
+if not io.copyFile(mapPath, outputPath, true) then
+	error('could not copy '..mapPath..' to '..outputPath)
+end
 
 local lastOutputPathFilePath = tempDir..'lastOutputPath.txt'
 
@@ -463,7 +465,7 @@ xpcall(xpfunc, errorHandler)]]
 
 			local curDir = io.curDir()
 
-			io.chdir(getFolder(path))
+			io.chdir(io.getFolder(path))
 
 			local ringRes, ringErrorMsg = sub:dostring(s)
 
@@ -495,7 +497,7 @@ xpcall(xpfunc, errorHandler)]]
 		local workDir = tool.workDir
 
 		if (workDir ~= nil) then
-			workDir = io.toAbsPath(workDir, getFolder(tool.path))
+			workDir = io.toAbsPath(workDir, io.getFolder(tool.path))
 		end
 
 		resLevel = osLib.runProg(nil, tool.path, args, nil, nil, workDir)

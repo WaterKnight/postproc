@@ -321,7 +321,7 @@ runTool('objForJass', {mapPath, wc3path})</pre><br>
 
 <h2>pathFiller</h2>
 
-<b>Description:</b> From given starting points, pathFiller looks into the .wpm to see which areas are reachable (not blocked off by unwalkable pathing). The remaining area is striked out (made unwalkable).<br>
+<b>Description:</b> From given starting points (centers of GUI rects prefixed with "wpm_"), pathFiller looks into the .wpm to see which areas are reachable (not blocked off by unwalkable pathing). The remaining area is striked out (made unwalkable).<br>
 <br>
 <b>Parameters:</b><br>
 1. mapPath<br>
@@ -329,6 +329,29 @@ runTool('objForJass', {mapPath, wc3path})</pre><br>
 <b>Sample:</b><br>
 <br>
 <pre>runTool('pathFiller', {mapPath})</pre><br>
+
+<h2>pathPainter</h2>
+
+<b>Description:</b> The areas of specifically prefixed GUI rects are added to terrain pathing. "wpma_" -> blocks air, "wpmg_" -> blocks ground, "wpmb_" -> blocks air and ground.<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>runTool('pathPainter', {mapPath})</pre><br>
+
+<h2>tagReplacer</h2>
+
+<b>Description:</b> Literalizes object editor like string tags in the object data in order to fix the original wc3 mechanism. ex: "&lt;A000,dur1&gt;" will become "5" if the "dur1" field of the "A000" object contains that value.<br>
+<br>
+<b>Parameters:</b><br>
+1. mapPath<br>
+2. wc3path //path to wc3's main directory<br>
+<br>
+<b>Sample:</b><br>
+<br>
+<pre>runTool('tagReplacer', {mapPath, wc3path})</pre><br>
 
 <h2>vjassImport</h2>
 
