@@ -10,4 +10,8 @@ local updatePath = postprocDir..'postproc_update.lua'
 
 local f = loadfile(updatePath)
 
-f()
+local result, errMsg, outMsg = f()
+
+if not result then
+	error(errMsg)
+end

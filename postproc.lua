@@ -58,6 +58,8 @@ local postprocDir = io.local_dir()
 
 local tempDir = postprocDir..[[temp\]]
 
+io.createDir(tempDir)
+
 local function updateInstructions()
 
 	--local mapRepo = tempDir..[[instructions\]]..io.getFileName(mapPath, true)..[[\]]
